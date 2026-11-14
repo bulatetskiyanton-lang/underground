@@ -17,6 +17,10 @@
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["Room"] }
   ],
+  "vars": {
+    // номер голоса лича в ElevenLabs — не секрет, без ключа он бесполезен
+    "ELEVENLABS_VOICE_ID": "KYdoRakolKZAEj8oZgAm"
+  },
   "ai": { "binding": "AI" },
   "observability": { "enabled": true }
 }
