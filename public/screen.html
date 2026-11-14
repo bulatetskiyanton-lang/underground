@@ -24,7 +24,9 @@ aside{padding:16px;display:flex;flex-direction:column;gap:14px;overflow:hidden;m
 #stage.video video.v{display:block}
 #stage.video video.v.on{opacity:1}
 #stage.video img.f{visibility:hidden!important}
-#stage.video img.f[data-f="closed"]{visibility:visible!important}
+#stage canvas.fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none}
+#stage.video canvas.fx{display:block}
+#stage canvas.fx-glow{mix-blend-mode:screen}
 #stage::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 0 transparent;transition:box-shadow .3s}
 #stage.hear::after{box-shadow:inset 0 0 90px 10px rgba(63,214,192,.35)}
 #stage.muse::after{box-shadow:inset 0 0 90px 10px rgba(240,150,43,.28)}
@@ -95,8 +97,8 @@ aside{padding:16px;display:flex;flex-direction:column;gap:14px;overflow:hidden;m
     <img class="f" data-f="blink" src="/img/lich_blink.webp" alt="">
     <img class="f" data-f="listen" src="/img/lich_listen.webp" alt="">
     <img class="f" data-f="think" src="/img/lich_think.webp" alt="">
-    <video class="v on" id="v-idle" src="/video/lich_idle.mp4" muted loop playsinline preload="auto"></video>
-    <video class="v" id="v-talk" src="/video/lich_talk.mp4" muted loop playsinline preload="auto"></video>
+    <video class="v on" id="v-idle" src="/video/lich_idle.mp4" poster="/img/lich_noeyes.webp" muted loop playsinline preload="auto"></video>
+    <video class="v" id="v-talk" src="/video/lich_talk.mp4" poster="/img/lich_noeyes.webp" muted loop playsinline preload="auto"></video>
     <canvas id="gl" aria-hidden="true"></canvas>
     <span class="pill" id="mood">ждёт</span>
     <div id="res" aria-live="polite"></div>

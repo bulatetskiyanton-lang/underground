@@ -1,5 +1,6 @@
 // Экран: лич (кадры + липсинк по звуку), кубики, монстры, комната.
 import qrcode from './vendor/qrcode.js';
+import { createFx } from './fx.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -7,7 +8,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 let ws = null, room = '', state = { players: [], started: false }, audioCtx = null, analyser = null;
 let speaking = false, thinking = false, listening = new Set(), level = 0, blinkUntil = 0, nextBlink = performance.now() + 3000;
 let pendingRoll = null;      // { pid, die } — чей бросок сейчас летит
-let lastLichId = 0, speakSeq = 0;
+let lastLichId = 0, speakSeq = 0, mood = '';
 
 // ---------- статус ключей ----------
 fetch('/api/status').then((r) => r.json()).then((s) => {
@@ -48,7 +49,7 @@ const err = (t) => { $('err').textContent = t || ''; };
 
 function onMsg(m) {
   if (m.t === 'state') { state = m; renderState(); if (m.lich && m.lich.id > lastLichId && !speaking) { lastLichId = m.lich.id; showLine(m.lich.text, false); showAsk(m.lich.roll); } }
-  else if (m.t === 'lich') { lastLichId = m.id; $('mood').textContent = m.mood || 'говорит'; showAsk(m.roll); speak(m.text); }
+  else if (m.t === 'lich') { lastLichId = m.id; mood = m.mood || ''; $('mood').textContent = m.mood || 'говорит'; showAsk(m.roll); speak(m.text); }
   else if (m.t === 'think') { thinking = !!m.on; if (thinking) $('mood').textContent = 'думает'; }
   else if (m.t === 'talking') { if (m.on) { listening.add(m.pid); stopSpeak(); } else listening.delete(m.pid); }
   else if (m.t === 'said') { addLog(m.name, m.text); }
@@ -129,6 +130,9 @@ function setFrame(f) { if (f === curFrame) return; frames[curFrame].classList.re
 // видео-петли: «покой» и «говорит». Если видео не играет — остаются кадры.
 const vIdle = $('v-idle'), vTalk = $('v-talk');
 let videoOk = false, talkHold = 0;
+const fx = createFx($('stage'));
+fx.loadTrack('idle', '/video/lich_idle.track.json');
+fx.loadTrack('talk', '/video/lich_talk.track.json');
 function startVideo() {
   Promise.all([vIdle.play(), vTalk.play()]).then(() => { videoOk = true; $('stage').classList.add('video'); }).catch(() => { videoOk = false; });
 }
@@ -153,7 +157,12 @@ function frame(now) {
     if (now < blinkUntil) f = 'blink';
   }
   setFrame(f);
-  if (videoOk) setVideo(speaking && now < talkHold);
+  const talkOn = speaking && now < talkHold;
+  if (videoOk) {
+    setVideo(talkOn);
+    const v = talkOn ? vTalk : vIdle;
+    fx.step(now, dt, { enabled: true, active: talkOn ? 'talk' : 'idle', time: v.currentTime, speaking, level, listening: listening.size > 0, thinking, blink: !speaking && now < blinkUntil, mood: speaking ? mood : '' });
+  }
   $('stage').classList.toggle('hear', !speaking && listening.size > 0);
   $('stage').classList.toggle('muse', !speaking && !listening.size && thinking);
   NKDice.step(now, dt);
