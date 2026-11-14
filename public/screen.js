@@ -50,11 +50,11 @@ const err = (t) => { $('err').textContent = t || ''; };
 function onMsg(m) {
   if (m.t === 'state') { state = m; renderState(); if (m.lich && m.lich.id > lastLichId && !speaking) { lastLichId = m.lich.id; showLine(m.lich.text, false); showAsk(m.lich.roll); } }
   else if (m.t === 'lich') { lastLichId = m.id; mood = m.mood || ''; stopGesture(['think', 'listen']); if (m.roll) gesture('dice'); else if (m.mood === 'смеётся') gesture('laugh'); else if (m.mood === 'злится') gesture('angry'); else if ((state.paths || []).length) gesture('point'); $('mood').textContent = m.mood || 'говорит'; showAsk(m.roll); speak(m.text); }
-  else if (m.t === 'think') { thinking = !!m.on; if (thinking) { $('mood').textContent = 'думает'; gesture('think'); } }
+  else if (m.t === 'think') { thinking = !!m.on; if (thinking) { $('mood').textContent = 'думает'; gesture('think'); if (Math.random() < 0.6) setTimeout(() => { if (thinking && !speaking) quip('think'); }, 900); } }
   else if (m.t === 'talking') { if (m.on) { listening.add(m.pid); stopSpeak(); gesture('listen'); } else { listening.delete(m.pid); if (!listening.size) stopGesture(['listen']); } }
   else if (m.t === 'said') { addLog(m.name, m.text); }
   else if (m.t === 'rolled') { addLog(m.name, 'бросил ' + m.die + ': ' + m.n); }
-  else if (m.t === 'do_roll') doRoll(m.pid, m.die, m.power);
+  else if (m.t === 'do_roll') { doRoll(m.pid, m.die, m.power); quip('roll'); }
   else if (m.t === 'gift') { gesture('give'); showGift(m); }
   else if (m.t === 'scene') { gesture('map'); showScene(m, true); }
   else if (m.t === 'error') err(m.text);
@@ -86,6 +86,8 @@ $('start').addEventListener('click', () => { send({ t: 'start' }); $('start').hi
 function showAsk(roll) { $('ask').textContent = roll ? `${roll.who}: бросай ${roll.die} — ${roll.why}` : ''; }
 
 // ---------- картинка места и карта ----------
+// «дубль» гравюры: штрихи слегка сдвигаются 9 раз в секунду, как в рисованной анимации
+if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) { let bs = 1; setInterval(() => { const n = document.getElementById('boil-n'); if (n && !$('scenecard').hidden) n.setAttribute('seed', String(bs = bs % 7 + 1)); }, 110); }
 let sceneShown = '';
 function showScene(m, fresh) {
   sceneShown = m.i + ':' + m.v;
@@ -136,24 +138,58 @@ let curAudio = null, lineText = '', lineDur = 0, lineT0 = 0;
 function showLine(text, live) { lineText = text; if (!live) { $('said').textContent = text; $('rest').textContent = ''; } }
 function stopSpeak() { speakSeq++; if (curAudio) { try { curAudio.pause(); } catch { /* ok */ } curAudio = null; } speaking = false; level = 0; if (lineText) { $('said').textContent = lineText; $('rest').textContent = ''; } }
 
-async function speak(text) {
-  stopSpeak();
+// подхваты: короткие фразы, записанные заранее, чтобы не было тишины, пока лич думает
+const QUIPS = {
+  roll: ['Ну, посмотрим, что там у тебя.', 'Кати, кати, не тяни.', 'Кости не врут. В отличие от тебя.', 'Ох, сейчас будет смешно.', 'Давай, удиви старика.'],
+  think: ['Хм. Дай подумать.', 'Так-так-так.', 'Кхе. Любопытно.', 'Погоди, не торопи старика.'],
+};
+const quipBlob = {};
+let lastQuip = '';
+async function loadQuips() {
+  let cache = null; try { cache = await caches.open('nk-quips-1'); } catch { /* без кэша */ }
+  for (const text of [...QUIPS.roll, ...QUIPS.think]) {
+    try {
+      const key = '/quip/' + encodeURIComponent(text);
+      let r = cache && await cache.match(key);
+      if (!r) {
+        r = await fetch('/api/voice', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) });
+        if (!r.ok) return;                      // голос не настроен — подхватов не будет
+        if (cache) await cache.put(key, r.clone());
+      }
+      quipBlob[text] = await r.blob();
+    } catch { return; }
+  }
+}
+function quip(kind) {
+  if (speaking) return;
+  const pool = QUIPS[kind].filter((t) => quipBlob[t] && t !== lastQuip);
+  if (!pool.length) return;
+  lastQuip = pool[Math.floor(Math.random() * pool.length)];
+  speak(lastQuip, quipBlob[lastQuip]);
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function speak(text, ready) {
+  const overQuip = !ready && curAudio && curAudio.quip && !curAudio.ended;
+  if (!overQuip) stopSpeak();
   const my = ++speakSeq;
-  lineText = text; $('said').textContent = ''; $('rest').textContent = text;
-  thinking = true;
-  let blob = null;
-  try {
+  if (!overQuip) { lineText = text; $('said').textContent = ''; $('rest').textContent = text; }
+  if (!ready) thinking = true;
+  let blob = ready || null;
+  if (!ready) try {
     const r = await fetch('/api/voice', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) });
     if (r.ok) blob = await r.blob(); else err('Голос: ' + (await r.text()).slice(0, 140));
   } catch (e) { err('Голос не ответил: ' + e.message); }
+  if (overQuip) { const q = curAudio; for (let i = 0; i < 40 && q && q === curAudio && !q.ended && !q.paused; i++) await sleep(80); if (my === speakSeq) { stopSpeak(); speakSeq = my; lineText = text; $('said').textContent = ''; $('rest').textContent = text; } }
   if (my !== speakSeq) return;
-  thinking = false;
+  if (!ready) thinking = false;
   if (!blob) {            // без голоса: показываем текст и шевелим ртом по таймеру
     speaking = true; lineT0 = performance.now(); lineDur = Math.max(1.5, text.length / 15); curAudio = null;
     setTimeout(() => { if (my === speakSeq) { speaking = false; $('said').textContent = text; $('rest').textContent = ''; $('mood').textContent = 'ждёт'; } }, lineDur * 1000);
     return;
   }
   const a = new Audio(URL.createObjectURL(blob));
+  a.quip = !!ready;
   curAudio = a;
   try { if (audioCtx) { if (audioCtx.state === 'suspended') await audioCtx.resume(); audioCtx.createMediaElementSource(a).connect(analyser); } } catch { /* играем напрямую */ }
   a.onloadedmetadata = () => { if (isFinite(a.duration)) lineDur = a.duration; };
@@ -179,36 +215,52 @@ const frames = {}; document.querySelectorAll('#stage img.f').forEach((i) => { fr
 let curFrame = 'closed';
 function setFrame(f) { if (f === curFrame) return; frames[curFrame].classList.remove('on'); frames[f].classList.add('on'); curFrame = f; }
 
-// видео-петли: «покой» и «говорит». Если видео не играет — остаются кадры.
-const vIdle = $('v-idle'), vTalk = $('v-talk');
-let videoOk = false, talkHold = 0;
+// ролики лича: у всех первый и последний кадр — одна и та же поза, поэтому режем встык, без растворения.
+const CLIPS = { idle: ['idle1', 'idle2'], talk: ['talk1', 'talk2'], gest: ['map', 'point', 'dice', 'give', 'laugh', 'angry', 'think', 'listen'] };
+const clipUrl = {};
+const vv = [$('v-a'), $('v-b')];
+let videoOk = false, talkHold = 0, cur = 0, curClip = '', nextClip = '', gestQ = [], lastIdle = '';
 const fx = createFx($('stage'));
-fx.loadTrack('idle', '/video/lich_idle.track.json');
-fx.loadTrack('talk', '/video/lich_talk.track.json');
-function startVideo() {
-  Promise.all([$('v-cave').play(), vIdle.play(), vTalk.play()]).then(() => { videoOk = true; $('stage').classList.add('video'); loadGestures(); }).catch(() => { videoOk = false; });
+function loadClip(n) {
+  fx.loadTrack(n, '/video/' + n + '.track.json');
+  return fetch('/video/' + n + '.webm').then((r) => (r.ok ? r.blob() : null)).then((b) => { if (b) clipUrl[n] = URL.createObjectURL(b); }).catch(() => {});
 }
-function setVideo(talk) { const g = gest && gestOn; vGest.classList.toggle('on', !!g); vTalk.classList.toggle('on', !g && talk); vIdle.classList.toggle('on', !g && !talk); }
-
-// жесты: отдельные ролики на прозрачном фоне, начинаются и кончаются позой покоя
-const vGest = $('v-gest'), GEST = ['map', 'point', 'dice', 'give', 'laugh', 'angry', 'think', 'listen'], gestUrl = {};
-let gest = '', gestOn = false;
-function loadGestures() {
-  GEST.forEach((g) => {
-    fx.loadTrack('g_' + g, '/video/g_' + g + '.track.json');
-    fetch('/video/g_' + g + '.webm').then((r) => (r.ok ? r.blob() : null)).then((b) => { if (b) gestUrl[g] = URL.createObjectURL(b); }).catch(() => {});
-  });
+function pickNext() {
+  while (gestQ.length) { const g = gestQ.shift(); if (clipUrl[g]) return g; }
+  const pool = (speaking ? CLIPS.talk : CLIPS.idle).filter((n) => clipUrl[n]);
+  if (!pool.length) return curClip;
+  let n = pool[Math.floor(Math.random() * pool.length)];
+  if (pool.length > 1 && n === lastIdle) n = pool[(pool.indexOf(n) + 1) % pool.length];
+  lastIdle = n; return n;
 }
+// следующий ролик заранее стоит на первом кадре под текущим
+function cue() {
+  nextClip = pickNext();
+  const v = vv[1 - cur];
+  if (v.dataset.clip !== nextClip) { v.dataset.clip = nextClip; v.src = clipUrl[nextClip]; v.load(); } else { try { v.currentTime = 0; } catch { /* ещё не готов */ } }
+}
+function swap() {
+  const a = vv[cur], b = vv[1 - cur];
+  b.playbackRate = 1; b.play().then(() => { b.classList.add('on'); a.classList.remove('on'); a.pause(); cur = 1 - cur; curClip = nextClip; cue(); }).catch(() => { a.currentTime = 0; a.play().catch(() => {}); });
+}
+vv.forEach((v) => v.addEventListener('ended', () => { if (v === vv[cur]) swap(); }));
+// жест: встаёт в очередь и начинается, когда текущий ролик дойдёт до общей позы
 function gesture(name) {
-  if (!videoOk || !gestUrl[name] || gest === name) return;
-  gest = name; gestOn = false;
-  vGest.src = gestUrl[name];
-  vGest.play().catch(() => { gest = ''; });
+  if (!videoOk || !clipUrl[name] || curClip === name || gestQ.includes(name)) return;
+  gestQ = [name];
+  if (!CLIPS.gest.includes(nextClip)) cue();
 }
-function stopGesture(only) { if (gest && (!only || only.includes(gest))) { gest = ''; gestOn = false; vGest.pause(); } }
-vGest.addEventListener('playing', () => { if (gest) gestOn = true; });
-vGest.addEventListener('ended', () => { gest = ''; gestOn = false; });
-vGest.addEventListener('error', () => { gest = ''; gestOn = false; });
+function stopGesture(only) { gestQ = gestQ.filter((g) => only && !only.includes(g)); if (CLIPS.gest.includes(nextClip) && (!only || only.includes(nextClip))) cue(); }
+function startVideo() {
+  const first = Promise.all([loadClip('idle1'), loadClip('idle2')]);
+  [...CLIPS.talk, ...CLIPS.gest].forEach(loadClip);
+  loadQuips();
+  first.then(() => {
+    if (!clipUrl.idle1) return;
+    const v = vv[0]; curClip = 'idle1'; v.dataset.clip = 'idle1'; v.src = clipUrl.idle1;
+    return Promise.all([$('v-cave').play(), v.play()]).then(() => { v.classList.add('on'); videoOk = true; $('stage').classList.add('video'); cue(); });
+  }).catch(() => { videoOk = false; });
+}
 
 let lastT = 0;
 function frame(now) {
@@ -231,11 +283,13 @@ function frame(now) {
   setFrame(f);
   const talkOn = speaking && now < talkHold;
   if (videoOk) {
-    setVideo(talkOn);
-    const gOn = gest && gestOn;
-    const v = gOn ? vGest : talkOn ? vTalk : vIdle;
+    const v = vv[cur];
+    const rate = CLIPS.gest.includes(curClip) ? 1 : (gestQ.length || CLIPS.talk.includes(curClip) !== !!speaking) ? 1.6 : 1;
+    if (v.playbackRate !== rate) v.playbackRate = rate;
+    // начал или кончил говорить — следующим ставим ролик под новое состояние
+    if (!gestQ.length && !CLIPS.gest.includes(nextClip) && CLIPS.talk.includes(nextClip) !== !!speaking) cue();
     $('v-cave').style.filter = `brightness(${(0.62 + 0.5 * fx.light).toFixed(3)})`;
-    fx.step(now, dt, { enabled: true, active: gOn ? 'g_' + gest : talkOn ? 'talk' : 'idle', time: v.currentTime, speaking, level, listening: listening.size > 0, thinking, blink: !speaking && now < blinkUntil, mood: speaking ? mood : '' });
+    fx.step(now, dt, { enabled: true, active: curClip, time: v.currentTime, speaking, level, listening: listening.size > 0, thinking, blink: !speaking && now < blinkUntil, mood: speaking ? mood : '' });
   }
   $('stage').classList.toggle('hear', !speaking && listening.size > 0);
   $('stage').classList.toggle('muse', !speaking && !listening.size && thinking);

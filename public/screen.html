@@ -22,7 +22,7 @@ aside{padding:16px;display:flex;flex-direction:column;gap:14px;overflow:hidden;m
 #stage img.f.on{visibility:visible}
 #stage video.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
 #stage.video video.bg{display:block}
-#stage video.v{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .22s linear;display:none}
+#stage video.v{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;display:none}
 #stage.video video.v{display:block}
 #stage.video video.v.on{opacity:1}
 #stage.video img.f{visibility:hidden!important}
@@ -72,7 +72,7 @@ aside{padding:16px;display:flex;flex-direction:column;gap:14px;overflow:hidden;m
 #scenecard.in{animation:scIn 1s cubic-bezier(.2,1.2,.3,1) both}
 #scenecard .im{position:relative;aspect-ratio:1;overflow:hidden;background:#1b1613}
 #scenecard.big .im{aspect-ratio:16/10}
-#scenecard img{position:absolute;left:-6%;top:-6%;width:112%;height:112%;object-fit:cover;animation:pan 16s ease-in-out infinite alternate}
+#scenecard img{filter:url(#boil);position:absolute;left:-6%;top:-6%;width:112%;height:112%;object-fit:cover;animation:pan 16s ease-in-out infinite alternate}
 #scenecard .im::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 40px 8px rgba(20,12,4,.55);background:radial-gradient(circle at 70% 60%,rgba(240,150,43,.18),transparent 60%);animation:pulse 3s ease-in-out infinite}
 #scenecard b{display:block;text-align:center;font-family:var(--display);font-weight:400;color:var(--ink-dark);font-size:clamp(15px,1.5vw,24px);padding:5px 4px 7px;line-height:1.05}
 @keyframes scIn{0%{transform:rotate(-14deg) translate(-120%,-30%) scale(.6);opacity:0}100%{transform:rotate(-3deg);opacity:1}}
@@ -128,13 +128,13 @@ aside{padding:16px;display:flex;flex-direction:column;gap:14px;overflow:hidden;m
     <img class="f" data-f="listen" src="/img/lich_listen.webp" alt="">
     <img class="f" data-f="think" src="/img/lich_think.webp" alt="">
     <video class="bg" id="v-cave" src="/video/cave.mp4" poster="/img/lich_noeyes.webp" muted loop playsinline preload="auto"></video>
-    <video class="v on" id="v-idle" src="/video/lich_idle.webm" muted loop playsinline preload="auto"></video>
-    <video class="v" id="v-talk" src="/video/lich_talk.webm" muted loop playsinline preload="auto"></video>
-    <video class="v" id="v-gest" muted playsinline preload="auto"></video>
+    <video class="v" id="v-a" muted playsinline preload="auto"></video>
+    <video class="v" id="v-b" muted playsinline preload="auto"></video>
     <canvas id="gl" aria-hidden="true"></canvas>
     <span class="pill" id="mood">ждёт</span>
     <div id="res" aria-live="polite"></div>
     <div id="ask"></div>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="boil" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence id="boil-n" type="fractalNoise" baseFrequency="0.035" numOctaves="1" seed="1" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
     <div id="scenecard" hidden><div class="im"><img alt=""></div><b></b></div>
     <div id="giftfx"></div>
     <div id="plate" class="plate shadow"><span class="tab">ЛИЧ</span><div class="in" aria-live="polite"><span id="said"></span><span id="rest">Ждёт монстров. Зайдите с телефона по коду слева.</span></div></div>
