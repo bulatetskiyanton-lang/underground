@@ -13,7 +13,11 @@ body.play{padding-bottom:calc(112px + env(safe-area-inset-bottom))}
 .w{max-width:520px;margin:0 auto;display:grid;gap:16px}
 h1{font-size:30px;color:var(--paper)}
 h2{font-size:26px;color:var(--paper)}
-.view,.tab{display:grid;gap:14px}
+.view,.tab{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+html,body{overflow-x:hidden;max-width:100%}
+body.play #title{display:none}
+body.play #err:empty{display:none}
+body.play{padding-top:calc(10px + env(safe-area-inset-top))}
 .row{display:grid;gap:8px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .race{padding:14px 10px;font-size:17px}
@@ -38,7 +42,7 @@ h2{font-size:26px;color:var(--paper)}
 .portrait::after{content:"";position:absolute;inset:0;border-radius:50%;box-shadow:inset 0 0 30px 6px rgba(0,0,0,.55)}
 .sheet .ribbon{z-index:1}
 .subtitle{text-align:center;font-size:15px;color:var(--ink-soft);margin-top:-6px;font-style:italic}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;text-align:center;padding:0 4%}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;text-align:center;padding:0 4%}
 .stat{display:grid;justify-items:center;gap:5px;font-size:13px;line-height:1.15;color:var(--ink-soft)}
 .stat b{font-family:var(--display);font-weight:400;font-size:18px;color:var(--paper);line-height:1.05}
 .skill{display:grid;grid-template-columns:54px 1fr 62px;gap:10px;align-items:center;padding:10px 12px;font-size:14px;line-height:1.2}
@@ -52,9 +56,9 @@ h2{font-size:26px;color:var(--paper)}
 .skill.weak .ibox{border-radius:50%;background:var(--ink-dark);color:var(--paper);box-shadow:none}
 
 /* амуниция */
-.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px}
-.slot{position:relative;aspect-ratio:1;background:#eadcb9 var(--grain);border:2.5px solid var(--ink-dark);box-shadow:inset 0 0 0 3px var(--paper-2),inset 0 0 0 4px var(--ink-dark);padding:9%;cursor:pointer;transition:transform .1s}
-.slot img{width:100%;height:100%;display:block;mix-blend-mode:multiply}
+.slots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:14px}
+.slot{position:relative;aspect-ratio:1;background:#eadcb9 var(--grain);border:2.5px solid var(--ink-dark);box-shadow:inset 0 0 0 3px var(--paper-2),inset 0 0 0 4px var(--ink-dark);padding:0;min-width:0;overflow:hidden;cursor:pointer;transition:transform .1s}
+.slot img{position:absolute;left:9%;top:9%;width:82%;height:82%;object-fit:contain;display:block;mix-blend-mode:multiply}
 .slot.empty{background:repeating-linear-gradient(135deg,rgba(20,16,12,.16) 0 1px,transparent 1px 6px),#e2d3ae;cursor:default}
 .slot:active{transform:scale(.95)}
 .slot.on{box-shadow:inset 0 0 0 3px var(--paper-2),inset 0 0 0 4px var(--ink-dark),0 0 0 3px var(--soul),0 0 14px 2px rgba(63,214,192,.7)}
@@ -77,9 +81,9 @@ h2{font-size:26px;color:var(--paper)}
 @keyframes giftOut{to{transform:translateY(-140%);opacity:0}}
 
 /* кубики */
-.dice6{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:18px 16px}
-.d{position:relative;aspect-ratio:1;border-radius:50%;border:3px solid var(--ink-dark);background:radial-gradient(circle at 50% 45%,#3a3026 0,#14100c 70%);box-shadow:inset 0 0 0 3px #6a5c47,inset 0 6px 14px rgba(0,0,0,.8),0 0 0 3px var(--paper-2),0 0 0 4.5px var(--ink-dark);padding:13%;cursor:pointer;transition:transform .12s}
-.d .die{width:100%;height:100%;display:block}
+.dice6{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:18px 16px}
+.d{position:relative;aspect-ratio:1;border-radius:50%;border:3px solid var(--ink-dark);background:radial-gradient(circle at 50% 45%,#3a3026 0,#14100c 70%);box-shadow:inset 0 0 0 3px #6a5c47,inset 0 6px 14px rgba(0,0,0,.8),0 0 0 3px var(--paper-2),0 0 0 4.5px var(--ink-dark);padding:0;min-width:0;cursor:pointer;transition:transform .12s}
+.d .die{position:absolute;left:13%;top:13%;width:74%;height:74%;display:block}
 .d.on{box-shadow:inset 0 0 0 3px var(--candle),inset 0 6px 14px rgba(0,0,0,.8),0 0 0 4px var(--candle),0 0 20px 5px rgba(240,150,43,.6);transform:scale(1.05)}
 .d.on .die{animation:wob 1.6s ease-in-out infinite}
 @keyframes wob{50%{transform:rotate(7deg) scale(1.04)}}
