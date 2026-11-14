@@ -2,9 +2,9 @@
 // Два холста: shade (обычное наложение, тени) и glow (режим screen, свет и огонь).
 // Координаты в долях кадра 1440×1075, сняты с эталона.
 
-const EYES = [{ x: 0.4579, y: 0.2920 }, { x: 0.5461, y: 0.2915 }];
+const EYES = [{ x: 0.4594, y: 0.2985 }, { x: 0.5387, y: 0.3020 }];
 const CANDLE = { x: 0.909, y: 0.622 };          // середина пламени
-const SOCKET_W = 0.026;                          // ширина глазницы, доля ширины кадра
+const SOCKET_W = 0.044;                          // ширина глазницы, доля ширины кадра
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const lerp = (a, b, k) => a + (b - a) * k;
@@ -43,71 +43,89 @@ export function createFx(stage) {
     sway = Math.max(-1, Math.min(1, sway));
   }
 
-  // ---------- огонь в глазах: частицы ----------
+  // ---------- искры из глазниц ----------
   const parts = [];
-  function emit(eye, power, ox, oy) {
-    const n = Math.round(power * 2.2 + Math.random());
-    for (let i = 0; i < n; i++) {
-      parts.push({
-        x: eye.x + ox + rnd(-0.32, 0.32) * SOCKET_W, y: eye.y + oy + rnd(-0.004, 0.006),
-        vx: rnd(-0.004, 0.004), vy: -rnd(0.07, 0.13) * (0.7 + power * 0.4),
-        life: 0, max: rnd(0.35, 0.75), r: rnd(0.0045, 0.0085) * (0.8 + power * 0.35),
-      });
-    }
+  function spark(eye, power, ox, oy) {
+    if (Math.random() > 0.10 * power) return;
+    parts.push({ x: eye.x + ox + rnd(-0.25, 0.25) * SOCKET_W, y: eye.y + oy - 0.012, vx: rnd(-0.01, 0.01), vy: -rnd(0.05, 0.11), life: 0, max: rnd(0.4, 0.9), r: rnd(0.0012, 0.0024) });
   }
 
   function drawShade() {
     sx.clearRect(0, 0, W, H);
-    const k = 1 - light;                                               // чем слабее свеча, тем темнее углы
+    const k = 1 - light;                                               // чем слабее свеча, тем темнее всё вокруг
     const cx = (CANDLE.x + sway * 0.012) * W, cy = CANDLE.y * H;
-    const g = sx.createRadialGradient(cx, cy, W * 0.06, cx - W * 0.25, cy - H * 0.05, W * 1.05);
-    g.addColorStop(0, 'rgba(20,12,4,0)');
-    g.addColorStop(0.45, `rgba(20,12,4,${0.10 + k * 0.30})`);
-    g.addColorStop(1, `rgba(12,7,3,${0.30 + k * 0.45})`);
+    const g = sx.createRadialGradient(cx, cy, W * 0.05, cx - W * 0.22, cy - H * 0.08, W * 1.0);
+    g.addColorStop(0, 'rgba(18,10,3,0)');
+    g.addColorStop(0.35, `rgba(18,10,3,${0.16 + k * 0.34})`);
+    g.addColorStop(1, `rgba(8,4,1,${0.52 + k * 0.40})`);
     sx.fillStyle = g; sx.fillRect(0, 0, W, H);
-    // тень лича на стене слева качается от пламени
-    const sh = sx.createRadialGradient((0.32 - sway * 0.02) * W, 0.35 * H, 0, (0.32 - sway * 0.02) * W, 0.35 * H, W * 0.22);
-    sh.addColorStop(0, `rgba(10,6,2,${0.10 + k * 0.18})`); sh.addColorStop(1, 'rgba(10,6,2,0)');
-    sx.fillStyle = sh; sx.fillRect(0, 0, W, H);
   }
 
-  function drawGlow(eyesOn, eyeI, ox, oy, dt) {
+  // язык пламени: капля с дрожащим кончиком
+  function tongue(ex, ey, w, h, lean, col) {
+    gx.beginPath();
+    gx.moveTo(ex - w, ey);
+    gx.bezierCurveTo(ex - w * 1.05, ey - h * 0.45, ex - w * 0.25 + lean * 0.5, ey - h * 0.7, ex + lean, ey - h);
+    gx.bezierCurveTo(ex + w * 0.35 + lean * 0.5, ey - h * 0.62, ex + w * 1.05, ey - h * 0.4, ex + w, ey);
+    gx.bezierCurveTo(ex + w * 0.9, ey + w * 0.9, ex - w * 0.9, ey + w * 0.9, ex - w, ey);
+    gx.fillStyle = col; gx.fill();
+  }
+
+  function drawGlow(now, eyesOn, eyeI, ox, oy, dt) {
     gx.clearRect(0, 0, W, H);
     gx.globalCompositeOperation = 'lighter';
-    // тёплый свет свечи
+    // свеча заливает сцену: большое тёплое пятно на всю комнату + ядро у пламени + блик на столе
     const cx = (CANDLE.x + sway * 0.006) * W, cy = CANDLE.y * H;
-    const cg = gx.createRadialGradient(cx, cy, 0, cx, cy, W * 0.42);
-    cg.addColorStop(0, `rgba(255,170,70,${0.30 * light})`);
-    cg.addColorStop(0.25, `rgba(240,130,40,${0.12 * light})`);
-    cg.addColorStop(1, 'rgba(240,130,40,0)');
-    gx.fillStyle = cg; gx.fillRect(0, 0, W, H);
-    const core = gx.createRadialGradient(cx, cy - H * 0.01, 0, cx, cy - H * 0.01, W * 0.035);
-    core.addColorStop(0, `rgba(255,236,170,${0.55 * light})`); core.addColorStop(1, 'rgba(255,200,120,0)');
+    const room = gx.createRadialGradient(cx, cy, 0, cx, cy, W * 0.95);
+    room.addColorStop(0, `rgba(255,150,50,${0.34 * light})`);
+    room.addColorStop(0.3, `rgba(230,115,30,${0.17 * light})`);
+    room.addColorStop(0.7, `rgba(190,85,20,${0.07 * light})`);
+    room.addColorStop(1, 'rgba(190,85,20,0)');
+    gx.fillStyle = room; gx.fillRect(0, 0, W, H);
+    const core = gx.createRadialGradient(cx, cy - H * 0.012, 0, cx, cy - H * 0.012, W * 0.07);
+    core.addColorStop(0, `rgba(255,240,190,${0.75 * light})`); core.addColorStop(0.4, `rgba(255,190,100,${0.3 * light})`); core.addColorStop(1, 'rgba(255,170,80,0)');
     gx.fillStyle = core; gx.fillRect(0, 0, W, H);
+    gx.save(); gx.translate(cx, H * 0.80); gx.scale(1, 0.16);
+    const tb = gx.createRadialGradient(0, 0, 0, 0, 0, W * 0.5);
+    tb.addColorStop(0, `rgba(255,170,70,${0.30 * light})`); tb.addColorStop(1, 'rgba(255,170,70,0)');
+    gx.fillStyle = tb; gx.beginPath(); gx.arc(0, 0, W * 0.5, 0, Math.PI * 2); gx.fill(); gx.restore();
 
-    // огонь в глазах
+    // огонь в глазницах: свет заполняет глазницу, язык пламени, отсвет на кости
     if (eyesOn > 0.01) {
-      for (const e of EYES) {
-        const ex = (e.x + ox) * W, ey = (e.y + oy) * H, rr = SOCKET_W * W * (1.1 + eyeI * 0.35);
-        const halo = gx.createRadialGradient(ex, ey - rr * 0.3, 0, ex, ey - rr * 0.3, rr * 2.4);
-        halo.addColorStop(0, `rgba(80,240,210,${0.30 * eyesOn * eyeI})`); halo.addColorStop(1, 'rgba(60,220,190,0)');
-        gx.fillStyle = halo; gx.fillRect(ex - rr * 3, ey - rr * 3.4, rr * 6, rr * 6);
-        if (!reduce) emit(e, eyeI * eyesOn, ox, oy);
-      }
+      const t = now / 1000;
+      EYES.forEach((e, i) => {
+        const ex = (e.x + ox) * W, ey = (e.y + oy) * H, sw = SOCKET_W * W, a = eyesOn;
+        const fl = 0.85 + 0.15 * Math.sin(t * 17 + i * 2.1) + 0.1 * Math.sin(t * 31 + i);
+        // отсвет на черепе вокруг
+        const spill = gx.createRadialGradient(ex, ey, sw * 0.3, ex, ey, sw * 2.6);
+        spill.addColorStop(0, `rgba(40,200,170,${0.20 * a * eyeI * fl})`); spill.addColorStop(1, 'rgba(40,200,170,0)');
+        gx.fillStyle = spill; gx.fillRect(ex - sw * 3, ey - sw * 3, sw * 6, sw * 6);
+        // свечение внутри глазницы (эллипс по форме глазницы)
+        gx.save(); gx.translate(ex, ey); gx.scale(1, 0.72);
+        const inner = gx.createRadialGradient(0, sw * 0.1, 0, 0, 0, sw * 0.62);
+        inner.addColorStop(0, `rgba(170,255,235,${0.85 * a * fl})`);
+        inner.addColorStop(0.35, `rgba(50,215,185,${0.55 * a * fl})`);
+        inner.addColorStop(0.8, `rgba(15,120,105,${0.22 * a})`);
+        inner.addColorStop(1, 'rgba(10,90,80,0)');
+        gx.fillStyle = inner; gx.beginPath(); gx.arc(0, 0, sw * 0.62, 0, Math.PI * 2); gx.fill(); gx.restore();
+        // языки пламени
+        const hgt = sw * (0.75 + 0.55 * eyeI) * (0.85 + 0.25 * Math.sin(t * 9 + i * 1.7) * Math.sin(t * 5.3 + i));
+        const lean = sw * 0.16 * Math.sin(t * 6.1 + i * 2.4) + sway * sw * 0.1;
+        const by = ey + sw * 0.08;
+        tongue(ex, by, sw * 0.30, hgt, lean, `rgba(20,150,130,${0.45 * a})`);
+        tongue(ex, by, sw * 0.21, hgt * 0.78, lean * 0.7, `rgba(70,235,205,${0.6 * a})`);
+        tongue(ex, by, sw * 0.11, hgt * 0.5, lean * 0.4, `rgba(225,255,248,${0.8 * a})`);
+        if (!reduce) spark(e, eyeI * a, ox, oy);
+      });
     }
     for (let i = parts.length - 1; i >= 0; i--) {
       const p = parts[i];
       p.life += dt; if (p.life > p.max) { parts.splice(i, 1); continue; }
-      p.x += p.vx * dt; p.y += p.vy * dt; p.vx += rnd(-0.03, 0.03) * dt;
-      const k = p.life / p.max, a = (1 - k) * (k < 0.15 ? k / 0.15 : 1) * eyesOn;
-      const r = p.r * W * (1 - k * 0.6);
-      const g = gx.createRadialGradient(p.x * W, p.y * H, 0, p.x * W, p.y * H, r);
-      g.addColorStop(0, `rgba(${k < 0.3 ? '220,255,245' : '90,240,210'},${0.8 * a})`);
-      g.addColorStop(1, 'rgba(40,200,170,0)');
-      gx.fillStyle = g; gx.save(); gx.translate(p.x * W, p.y * H); gx.scale(0.75, 1.9); gx.translate(-p.x * W, -p.y * H);
-      gx.beginPath(); gx.arc(p.x * W, p.y * H, r, 0, Math.PI * 2); gx.fill(); gx.restore();
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      const k = p.life / p.max;
+      gx.fillStyle = `rgba(150,255,235,${(1 - k) * 0.9 * eyesOn})`;
+      gx.beginPath(); gx.arc(p.x * W, p.y * H, p.r * W, 0, Math.PI * 2); gx.fill();
     }
-    if (parts.length > 400) parts.splice(0, parts.length - 400);
     gx.globalCompositeOperation = 'source-over';
   }
 
@@ -135,7 +153,7 @@ export function createFx(stage) {
       eyeI = lerp(eyeI, wantI, Math.min(1, dt * 8));
       eyesOn = lerp(eyesOn, s.blink ? 0 : 1, Math.min(1, dt * (s.blink ? 30 : 9)));
       drawShade();
-      drawGlow(s.enabled ? eyesOn : 0, eyeI, ox, oy, dt);
+      drawGlow(now, s.enabled ? eyesOn : 0, eyeI, ox, oy, dt);
     },
   };
 }

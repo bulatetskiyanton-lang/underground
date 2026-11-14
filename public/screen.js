@@ -160,7 +160,7 @@ const fx = createFx($('stage'));
 fx.loadTrack('idle', '/video/lich_idle.track.json');
 fx.loadTrack('talk', '/video/lich_talk.track.json');
 function startVideo() {
-  Promise.all([vIdle.play(), vTalk.play()]).then(() => { videoOk = true; $('stage').classList.add('video'); }).catch(() => { videoOk = false; });
+  Promise.all([$('v-cave').play(), vIdle.play(), vTalk.play()]).then(() => { videoOk = true; $('stage').classList.add('video'); }).catch(() => { videoOk = false; });
 }
 function setVideo(talk) { vTalk.classList.toggle('on', talk); vIdle.classList.toggle('on', !talk); }
 
