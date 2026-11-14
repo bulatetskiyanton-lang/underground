@@ -257,7 +257,8 @@ export class Room {
       this.turn({ kind: 'say', who: this.label(p), text });
     } else if (m.t === 'roll') {
       const die = DICE.includes(m.die) ? m.die : 'd20';
-      if (this.hasScreen()) this.cast({ t: 'do_roll', pid: p.pid, name: this.label(p), die }, 'screen');
+      const power = Math.max(0.1, Math.min(1, Number(m.power) || 0.6));
+      if (this.hasScreen()) this.cast({ t: 'do_roll', pid: p.pid, name: this.label(p), die, power }, 'screen');
       else this.rolled(p.pid, die, 1 + Math.floor(Math.random() * Number(die.slice(1))));
     }
   }

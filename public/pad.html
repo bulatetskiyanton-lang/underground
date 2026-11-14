@@ -22,43 +22,58 @@ h2{font-size:26px;color:var(--paper)}
 .muted{color:var(--ink-soft);font-size:15px}
 #err{color:var(--blood);font-size:15px;min-height:18px}
 
-/* лист персонажа */
-.sheet .in{display:grid;gap:10px;background:var(--paper-2)}
-.arch{position:relative;margin:0 auto;width:68%;aspect-ratio:1/1.08;border:4px solid var(--ink-dark);border-radius:50% 50% 4px 4px/42% 42% 4px 4px;overflow:hidden;background:#d9cba9 center/cover;display:grid;place-items:center;font-family:var(--display);font-size:90px;color:#8a7b62;box-shadow:inset 0 0 0 3px var(--paper-2),inset 0 0 0 4px var(--ink-dark)}
-.banner{margin:-18px auto 0;position:relative;background:var(--ink-dark);color:var(--paper);padding:6px 22px 8px;text-align:center;width:max-content;max-width:92%;clip-path:polygon(0 0,100% 0,96% 50%,100% 100%,0 100%,4% 50%)}
-.banner h2{color:var(--paper);font-size:28px;line-height:1.05}
-.banner .t{font-size:14px;color:#cdbf9f}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.stat{display:grid;justify-items:center;gap:0;border:2px solid var(--ink-dark);padding:4px 2px 6px;font-size:13px;line-height:1.15;text-align:center;color:#5c4f3d}
-.stat img{width:46px;height:46px;mix-blend-mode:multiply}
-.stat b{font-family:var(--display);font-weight:400;font-size:22px;color:var(--ink-dark)}
-.sk{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border-top:1px solid #8a7b62;padding-top:8px;font-size:15px;line-height:1.2}
-.sk b{font-family:var(--display);font-weight:400;font-size:19px}
-.die-btn{font-family:var(--display);font-size:17px;background:var(--ink-dark);color:var(--paper);border:0;padding:10px 12px;cursor:pointer;clip-path:polygon(50% 0,100% 28%,100% 72%,50% 100%,0 72%,0 28%);min-width:58px;min-height:58px}
-.weak{font-size:15px;color:#5c4f3d;border-top:1px solid #8a7b62;padding-top:8px;display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center}
-.weak img{width:44px;height:44px;mix-blend-mode:multiply}
+/* лист персонажа — детали вырезаны из макета */
+.sheet{display:grid;gap:10px}
+.head{position:relative;width:100%;aspect-ratio:720/452;background:url(/img/pad/header.webp) center/100% 100% no-repeat}
+.head .ph{position:absolute;left:49.8%;top:40.5%;width:41.5%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:#14100c center/cover;display:grid;place-items:center;font-family:var(--display);font-size:72px;color:#6a5c47;overflow:hidden}
+.head .ph::after{content:"";position:absolute;inset:0;border-radius:50%;box-shadow:inset 0 0 26px 8px rgba(0,0,0,.75)}
+.head .nm{position:absolute;left:22%;right:22%;top:76.5%;height:17%;display:grid;place-items:center;text-align:center;color:var(--ink-dark);line-height:1}
+.head .nm h2{color:var(--ink-dark);font-size:clamp(18px,5.6vw,26px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.subtitle{text-align:center;font-size:15px;color:var(--ink-soft);margin-top:-4px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center}
+.stat{display:grid;justify-items:center;gap:2px;font-size:13px;line-height:1.15;color:var(--ink-soft)}
+.stat i{width:min(25vw,108px);aspect-ratio:1;background:center/contain no-repeat}
+.stat b{font-family:var(--display);font-weight:400;font-size:18px;color:var(--paper);line-height:1.1}
+.strip{position:relative;min-height:78px;border-style:solid;border-width:8px 64px 10px 70px;border-image:url(/img/pad/strip0.webp) 18 130 20 140 fill / 8px 64px 10px 70px stretch;color:var(--ink-dark);font-size:14px;line-height:1.2;display:flex;align-items:center}
+.strip.s1{border-image-source:url(/img/pad/strip1.webp)} .strip.s2{border-image-source:url(/img/pad/strip2.webp)}
+.strip .tx{padding:4px 6px 4px 4px}
+.strip b{font-family:var(--display);font-weight:400;font-size:18px;display:block;line-height:1.05;margin-bottom:2px}
+.strip .die-btn{position:absolute;right:-62px;top:50%;transform:translateY(-50%);width:58px;height:62px;border:0;background:transparent;cursor:pointer;padding:0}
+.strip .die-btn span{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);background:var(--ink-dark);color:var(--candle);padding:1px 7px;font-family:var(--display);font-size:15px;white-space:nowrap}
+.strip .die-btn:active{transform:translateY(-50%) scale(.92)}
+.strip.weak{border-width:8px 16px 10px 74px;border-image:url(/img/pad/strip_weak.webp) 20 30 22 150 fill / 8px 16px 10px 74px stretch}
 
 /* амуниция */
-.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.slot{position:relative;aspect-ratio:1;background:var(--paper-2);border:3px solid var(--ink-dark);padding:0;cursor:pointer;box-shadow:4px 4px 0 0 var(--hatch)}
+.gtitle{width:100%;aspect-ratio:760/178;background:url(/img/pad/gear_title.webp) center/100% 100% no-repeat;display:grid;place-items:center;padding-bottom:5%}
+.gtitle h2{color:var(--ink-dark);font-size:26px}
+.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;background:var(--paper-2);padding:10px;border:3px solid var(--ink-dark)}
+.slot{position:relative;aspect-ratio:240/243;background:url(/img/pad/slot.webp) center/100% 100% no-repeat;border:0;padding:12%;cursor:pointer;transition:transform .1s}
 .slot img{width:100%;height:100%;display:block;mix-blend-mode:multiply}
-.slot.on{border-color:var(--soul);box-shadow:0 0 0 3px var(--soul),4px 4px 0 0 var(--hatch)}
-.slot.on::after{content:"";position:absolute;right:5px;top:5px;width:10px;height:15px;background:var(--soul);border-radius:50% 50% 50% 50%/70% 70% 30% 30%;animation:flame .14s steps(2) infinite alternate;transform-origin:50% 100%}
-.slot.sel{outline:3px solid var(--candle);outline-offset:2px}
-.detail .in{display:grid;grid-template-columns:84px 1fr;gap:12px;align-items:center;min-height:100px}
-.detail img{width:84px;height:84px;mix-blend-mode:multiply}
-.detail h3{font-size:22px;line-height:1.05}
-.detail p{margin:4px 0 0;font-size:15px;line-height:1.25;color:#5c4f3d}
+.slot:active{transform:scale(.95)}
+.slot.on{filter:drop-shadow(0 0 6px var(--soul)) drop-shadow(0 0 2px var(--soul))}
+.slot.on::after{content:"";position:absolute;right:9%;top:8%;width:10px;height:15px;background:var(--soul);border-radius:50% 50% 50% 50%/70% 70% 30% 30%;animation:flame .14s steps(2) infinite alternate;transform-origin:50% 100%}
+.slot.sel{outline:3px solid var(--candle);outline-offset:-4px}
+.detail{position:relative;width:100%;aspect-ratio:780/412;background:url(/img/pad/detail.webp) center/100% 100% no-repeat}
+.detail .pic{position:absolute;left:8.2%;top:8.6%;width:34.4%;height:66.5%;display:grid;place-items:center}
+.detail .pic img{width:92%;mix-blend-mode:multiply}
+.detail .txt{position:absolute;left:45%;right:6%;top:8%;height:68%;color:var(--ink-dark);overflow:hidden}
+.detail h3{font-size:clamp(17px,5vw,22px);line-height:1.05}
+.detail p{margin:6px 0 0;font-size:14px;line-height:1.25;color:#3a2f22}
+.detail .hint{position:absolute;left:24%;right:24%;bottom:5%;height:12%;display:grid;place-items:center;font-family:var(--label);font-weight:700;letter-spacing:.06em;font-size:12px;color:#5c4f3d;text-transform:uppercase}
 
 /* кубики */
-.dice6{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.d{aspect-ratio:1;background:var(--plate);border:3px solid var(--hatch);border-radius:50%;display:grid;place-items:center;cursor:pointer;padding:0;color:var(--ink)}
-.d svg{width:62%;height:62%;fill:#1b1613;stroke:var(--paper);stroke-width:2.2;stroke-linejoin:round}
-.d span{position:absolute;font-family:var(--display);font-size:19px;color:var(--paper);pointer-events:none}
-.d{position:relative}
-.d.on{border-color:var(--candle);box-shadow:0 0 0 4px var(--candle);animation:pulse 1.8s ease-in-out infinite}
-.d.on svg{fill:var(--candle);stroke:var(--ink-dark)} .d.on span{color:var(--ink-dark)}
-#throw{font-size:19px;padding:22px 16px}
+.dtitle{width:100%;aspect-ratio:760/193;background:url(/img/pad/dice_title.webp) center/100% 100% no-repeat;display:grid;place-items:center;padding-bottom:6%}
+.dtitle h2{color:var(--ink-dark);font-size:26px}
+.dice6{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--paper-2);padding:10px 6px;border:3px solid var(--ink-dark)}
+.d{position:relative;aspect-ratio:1;border:0;padding:0;cursor:pointer;background:center/100% no-repeat;border-radius:50%;transition:transform .12s}
+.d span{position:absolute;left:50%;bottom:-2px;transform:translateX(-50%);font-family:var(--display);font-size:16px;color:var(--paper);background:var(--ink-dark);padding:0 8px}
+.d.on{box-shadow:0 0 0 4px var(--candle),0 0 22px 6px rgba(240,150,43,.55);transform:scale(1.04);animation:none}
+.d.on span{color:var(--ink-dark);background:var(--candle)}
+.power{position:relative;width:100%;aspect-ratio:760/151;background:url(/img/pad/power.webp) center/100% 100% no-repeat}
+.power i{position:absolute;left:14.6%;top:24.5%;height:26%;width:0;max-width:70.6%;background:repeating-linear-gradient(135deg,var(--ink-dark) 0 2px,transparent 2px 5px);transition:width .05s}
+#throw{display:block;margin:0 auto;width:min(58vw,240px);aspect-ratio:300/329;border:0;background:url(/img/pad/seal_throw.webp) center/100% no-repeat;cursor:pointer;font-size:0;touch-action:none;transition:transform .08s}
+#throw.down{transform:scale(.93);filter:brightness(1.15) drop-shadow(0 0 14px var(--candle))}
+#throw-label{text-align:center;font-family:var(--label);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--paper)}
 #ask{display:none;border-color:var(--candle);box-shadow:5px 5px 0 0 var(--candle);animation:pulse 1.6s ease-in-out infinite}
 #ask.on{display:block}
 
@@ -72,13 +87,14 @@ h2{font-size:26px;color:var(--paper)}
 #heard{min-height:22px;font-size:16px;color:var(--ink-soft);text-align:center}
 form{display:grid;grid-template-columns:1fr auto;gap:8px}
 
-/* вкладки */
-#tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:#0d0a07;border-top:3px solid var(--hatch);padding:8px max(8px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
-#tabs button{background:none;border:0;color:var(--ink-soft);display:grid;justify-items:center;gap:2px;font-family:var(--label);font-weight:700;letter-spacing:.06em;font-size:12px;text-transform:uppercase;padding:4px 0;cursor:pointer;position:relative}
-#tabs img{width:52px;height:52px;border-radius:50%;border:2px solid var(--hatch);display:block;filter:grayscale(.35) brightness(.8)}
-#tabs button[aria-selected="true"]{color:var(--candle)}
-#tabs button[aria-selected="true"] img{border-color:var(--candle);box-shadow:0 0 0 2px var(--candle);filter:none}
-#tabs button.ping::after{content:"";position:absolute;top:0;right:18%;width:12px;height:12px;border-radius:50%;background:var(--candle);animation:pulse 1s ease-in-out infinite}
+/* вкладки — панель из макета */
+#tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;display:block;background:#0d0a07;padding:0 0 env(safe-area-inset-bottom)}
+#tabs .bar{position:relative;max-width:520px;margin:0 auto;aspect-ratio:900/235;background:url(/img/pad/tabbar.webp) center/100% 100% no-repeat}
+#tabs button{position:absolute;top:13%;width:20%;aspect-ratio:1;border-radius:50%;border:0;background:transparent;cursor:pointer;font-size:0;transition:box-shadow .15s}
+#tabs button[data-tab="sheet"]{left:5.2%} #tabs button[data-tab="gear"]{left:29.5%} #tabs button[data-tab="dice"]{left:53.7%} #tabs button[data-tab="talk"]{left:77.6%}
+#tabs button[aria-selected="true"]{box-shadow:0 0 0 3px var(--candle),0 0 18px 4px rgba(240,150,43,.6)}
+#tabs button.ping::after{content:"";position:absolute;top:2%;right:4%;width:14px;height:14px;border-radius:50%;background:var(--candle);border:2px solid var(--ink-dark);animation:pulse 1s ease-in-out infinite}
+body.play{padding-bottom:calc(min(28vw,146px) + 12px + env(safe-area-inset-bottom))}
 </style>
 </head>
 <body>
@@ -115,24 +131,25 @@ form{display:grid;grid-template-columns:1fr auto;gap:8px}
 
   <section class="view" id="v-play" hidden>
     <div class="tab" id="t-sheet">
-      <div class="plate shadow sheet"><div class="in" id="sheet"></div></div>
+      <div class="sheet" id="sheet"></div>
       <button class="btn dark" id="remake" type="button">Слепить другого монстра</button>
     </div>
 
     <div class="tab" id="t-gear" hidden>
-      <h2>Амуниция</h2>
+      <div class="gtitle"><h2>Амуниция</h2></div>
       <div class="muted" id="gear-hint">Возьми с собой три вещи. Нажми на вещь, потом «Взять».</div>
       <div class="slots" id="slots"></div>
-      <div class="plate shadow detail"><div class="in" id="detail"><div class="muted" style="grid-column:1/-1;color:#5c4f3d">Нажми на вещь, чтобы рассмотреть.</div></div></div>
+      <div class="detail" id="detail"></div>
       <div class="grid2"><button class="btn" id="take" type="button" disabled>Взять</button><button class="btn main" id="use" type="button" disabled>Использовать</button></div>
     </div>
 
     <div class="tab" id="t-dice" hidden>
-      <h2>Кубики</h2>
+      <div class="dtitle"><h2>Кубики</h2></div>
       <button class="btn" id="ask" type="button"></button>
       <div class="dice6" id="dice"></div>
-      <button class="btn main" id="throw" type="button">Бросить d20</button>
-      <div class="muted">Кубик покатится по столу лича на большом экране.</div>
+      <div class="power"><i id="pw"></i></div>
+      <button id="throw" type="button" aria-label="Бросить кубик">Бросить</button>
+      <div id="throw-label">Зажми печать — сила, отпусти — бросок d20</div>
     </div>
 
     <div class="tab" id="t-talk" hidden>
@@ -145,12 +162,12 @@ form{display:grid;grid-template-columns:1fr auto;gap:8px}
   </section>
 </div>
 
-<nav id="tabs" hidden>
-  <button type="button" data-tab="sheet" aria-selected="true"><img src="/img/ui/tab_sheet.webp" alt="">Лист</button>
-  <button type="button" data-tab="gear"><img src="/img/ui/tab_gear.webp" alt="">Амуниция</button>
-  <button type="button" data-tab="dice"><img src="/img/ui/tab_dice.webp" alt="">Кубики</button>
-  <button type="button" data-tab="talk"><img src="/img/ui/tab_talk.webp" alt="">Разговор</button>
-</nav>
+<nav id="tabs" hidden><div class="bar">
+  <button type="button" data-tab="sheet" aria-selected="true" aria-label="Лист">Лист</button>
+  <button type="button" data-tab="gear" aria-label="Амуниция">Амуниция</button>
+  <button type="button" data-tab="dice" aria-label="Кубики">Кубики</button>
+  <button type="button" data-tab="talk" aria-label="Разговор">Разговор</button>
+</div></nav>
 <script src="/pad.js"></script>
 </body>
 </html>

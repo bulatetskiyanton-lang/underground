@@ -54,7 +54,7 @@ function onMsg(m) {
   else if (m.t === 'talking') { if (m.on) { listening.add(m.pid); stopSpeak(); } else listening.delete(m.pid); }
   else if (m.t === 'said') { addLog(m.name, m.text); }
   else if (m.t === 'rolled') { addLog(m.name, 'бросил ' + m.die + ': ' + m.n); }
-  else if (m.t === 'do_roll') doRoll(m.pid, m.die);
+  else if (m.t === 'do_roll') doRoll(m.pid, m.die, m.power);
   else if (m.t === 'error') err(m.text);
 }
 
@@ -187,9 +187,9 @@ function initDice() {
 }
 function markRack() { [...$('rack').children].forEach((b, i) => b.setAttribute('aria-pressed', String(i === NKDice.selected()))); }
 function pick(i) { if (NKDice.select(i)) { $('res').textContent = ''; markRack(); } }
-function doRoll(pid, die) {
+function doRoll(pid, die, power) {
   const i = NKDice.DICE.findIndex((d) => d.id === die);
-  const go = () => { if (NKDice.busy()) return setTimeout(go, 300); pick(i < 0 ? 5 : i); pendingRoll = { pid, die }; $('res').textContent = ''; NKDice.throwNow(0.45 + Math.random() * 0.5); };
+  const go = () => { if (NKDice.busy()) return setTimeout(go, 300); pick(i < 0 ? 5 : i); pendingRoll = { pid, die }; $('res').textContent = ''; NKDice.throwNow(typeof power === 'number' ? power : 0.45 + Math.random() * 0.5); };
   go();
 }
 

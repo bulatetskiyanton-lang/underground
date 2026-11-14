@@ -64,10 +64,10 @@
   function setTab(t) {
     tab = t;
     ['sheet', 'gear', 'dice', 'talk'].forEach(function (n) { $('t-' + n).hidden = n !== t; });
-    Array.prototype.forEach.call($('tabs').children, function (b) { b.setAttribute('aria-selected', String(b.dataset.tab === t)); if (b.dataset.tab === t) b.classList.remove('ping'); });
+    Array.prototype.forEach.call($('tabs').querySelectorAll('button'), function (b) { b.setAttribute('aria-selected', String(b.dataset.tab === t)); if (b.dataset.tab === t) b.classList.remove('ping'); });
     window.scrollTo(0, 0);
   }
-  Array.prototype.forEach.call($('tabs').children, function (b) { b.addEventListener('click', function () { setTab(b.dataset.tab); }); });
+  Array.prototype.forEach.call($('tabs').querySelectorAll('button'), function (b) { b.addEventListener('click', function () { setTab(b.dataset.tab); }); });
   function ping(t) { if (tab === t) return; var b = $('tabs').querySelector('[data-tab="' + t + '"]'); if (b) b.classList.add('ping'); }
 
   RACES.forEach(function (r) {
@@ -99,19 +99,23 @@
   function drawSheet() {
     var m = me.monster;
     var img = me.pv ? ' style="background-image:url(\'/api/portrait?room=' + room + '&pid=' + encodeURIComponent(pid) + '&v=' + me.pv + '\')"' : '';
+    var tr = m.traits || [];
     $('sheet').innerHTML =
-      '<div class="arch"' + img + '>' + (me.pv ? '' : esc(m.name.charAt(0))) + '</div>' +
-      '<div class="banner"><h2>' + esc(m.name) + '</h2><div class="t">' + esc(m.title) + ' · ' + esc(m.race) + '</div></div>' +
-      '<div class="stats"><div class="stat"><img src="/img/ui/heart.webp" alt=""><b>' + m.hp + '</b>здоровье</div>' +
-      (m.traits || []).slice(0, 2).map(function (t, i) { return '<div class="stat"><img src="/img/ui/' + (i ? 'eye' : 'fist') + '.webp" alt=""><b style="font-size:16px;line-height:1.1">' + esc(t) + '</b></div>'; }).join('') + '</div>' +
-      (m.skills || []).map(function (s, i) { return '<div class="sk"><div><b>' + esc(s.name) + '</b><br>' + esc(s.desc) + '</div><button type="button" class="die-btn" data-sk="' + i + '">' + esc(s.die) + '</button></div>'; }).join('') +
-      '<div class="weak"><img src="/img/ui/curse.webp" alt=""><div><b>Слабость:</b> ' + esc(m.weakness) + '<br><span class="hand">«' + esc(m.phrase) + '»</span></div></div>';
+      '<div class="head"><div class="ph"' + img + '>' + (me.pv ? '' : esc(m.name.charAt(0))) + '</div><div class="nm"><h2>' + esc(m.name) + '</h2></div></div>' +
+      '<div class="subtitle">' + esc(m.title) + '</div>' +
+      '<div class="stats">' +
+        '<div class="stat"><i style="background-image:url(/img/pad/med_heart.webp)"></i><b>' + m.hp + '</b>здоровье</div>' +
+        '<div class="stat"><i style="background-image:url(/img/pad/med_shield.webp)"></i><b>' + esc(tr[0] || '—') + '</b>' + esc(m.race) + '</div>' +
+        '<div class="stat"><i style="background-image:url(/img/pad/med_eye.webp)"></i><b>' + esc(tr[1] || '—') + '</b>' + esc(tr[2] || '') + '</div>' +
+      '</div>' +
+      (m.skills || []).map(function (s, i) { return '<div class="strip s' + i + '"><div class="tx"><b>' + esc(s.name) + '</b>' + esc(s.desc) + '</div><button type="button" class="die-btn" data-sk="' + i + '" aria-label="Бросить ' + esc(s.die) + '"><span>' + esc(s.die) + '</span></button></div>'; }).join('') +
+      '<div class="strip weak"><div class="tx"><b>Слабость</b>' + esc(m.weakness) + '<br><span class="hand">«' + esc(m.phrase) + '»</span></div></div>';
   }
   $('sheet').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-sk]'); if (!b || !me || !me.monster) return;
     var s = me.monster.skills[Number(b.dataset.sk)];
     send({ t: 'say', text: 'Использую умение «' + s.name + '».' });
-    send({ t: 'roll', die: s.die });
+    send({ t: 'roll', die: s.die, power: 0.5 + Math.random() * 0.4 });
     setTab('talk');
   });
 
@@ -120,9 +124,10 @@
     var items = (me.monster && me.monster.items) || [], gear = me.gear || [];
     $('gear-hint').textContent = !items.length ? 'У этого монстра нет вещей. Слепи нового — лич соберёт ему шесть на выбор.' : gear.length < 3 ? 'Возьми с собой три вещи. Взято: ' + gear.length + ' из 3.' : 'Три вещи с тобой. Нажми на вещь и «Использовать».';
     $('slots').innerHTML = items.map(function (it, i) { return '<button type="button" class="slot' + (gear.indexOf(i) >= 0 ? ' on' : '') + (i === selItem ? ' sel' : '') + '" data-i="' + i + '" aria-label="' + esc(it.name) + '"><img src="/img/items/' + esc(it.kind) + '.webp" alt=""></button>'; }).join('');
-    var it = items[selItem];
-    $('detail').innerHTML = it ? '<img src="/img/items/' + esc(it.kind) + '.webp" alt=""><div><h3>' + esc(it.name) + '</h3><p>' + esc(it.desc) + '</p></div>' : '<div class="muted" style="grid-column:1/-1;color:#5c4f3d">Нажми на вещь, чтобы рассмотреть.</div>';
-    var has = gear.indexOf(selItem) >= 0;
+    var it = items[selItem], has = gear.indexOf(selItem) >= 0;
+    $('detail').innerHTML = it
+      ? '<div class="pic"><img src="/img/items/' + esc(it.kind) + '.webp" alt=""></div><div class="txt"><h3>' + esc(it.name) + '</h3><p>' + esc(it.desc) + '</p></div><div class="hint">' + (has ? 'с собой' : 'лежит в норе') + '</div>'
+      : '<div class="txt" style="left:8%;right:8%;display:grid;place-items:center;text-align:center"><p>Нажми на вещь, чтобы рассмотреть.</p></div>';
     $('take').disabled = !it || (!has && gear.length >= 3);
     $('take').textContent = has ? 'Выложить' : 'Взять';
     $('use').disabled = !it || !has;
@@ -136,16 +141,34 @@
   });
   $('use').addEventListener('click', function () { if (selItem < 0) return; send({ t: 'use', i: selItem }); $('heard').textContent = 'Ты достал: ' + me.monster.items[selItem].name; setTab('talk'); });
 
-  // ---------- кубики ----------
-  var SHAPES = { d4: 'M17 4 31 29H3z', d6: 'M5 5h24v24H5z', d8: 'M17 2 31 17 17 32 3 17z', d10: 'M17 2 31 14 17 32 3 14z', d12: 'M17 2 31 12 26 30H8L3 12z', d20: 'M17 2 30 9.5v15L17 32 4 24.5v-15z' };
-  DICE.forEach(function (d) {
+  // ---------- кубики: печать зажал — сила копится, отпустил — бросок ----------
+  DICE.forEach(function (d, i) {
     var b = document.createElement('button'); b.type = 'button'; b.className = 'd' + (d === selDie ? ' on' : ''); b.dataset.d = d;
-    b.innerHTML = '<svg viewBox="0 0 34 34"><path d="' + SHAPES[d] + '"/></svg><span>' + d.slice(1) + '</span>';
+    b.style.backgroundImage = 'url(/img/pad/die' + i + '.webp)';
+    b.setAttribute('aria-label', d);
+    b.innerHTML = '<span>' + d + '</span>';
     b.addEventListener('click', function () { pickDie(d); });
     $('dice').appendChild(b);
   });
-  function pickDie(d) { selDie = d; Array.prototype.forEach.call($('dice').children, function (b) { b.classList.toggle('on', b.dataset.d === d); }); $('throw').textContent = 'Бросить ' + d; }
-  $('throw').addEventListener('click', function () { send({ t: 'roll', die: selDie }); $('ask').className = 'btn'; lastAsk = null; $('throw').disabled = true; setTimeout(function () { $('throw').disabled = false; }, 2500); });
+  function pickDie(d) { selDie = d; Array.prototype.forEach.call($('dice').children, function (b) { b.classList.toggle('on', b.dataset.d === d); }); $('throw-label').textContent = 'Зажми печать — сила, отпусти — бросок ' + d; }
+  var charge = 0, charging = false, chargeT0 = 0, lockUntil = 0;
+  function chargeLoop() {
+    if (!charging) return;
+    var t = (performance.now() - chargeT0) / 1000 * 1.1, ph = t % 2; charge = ph < 1 ? ph : 2 - ph;
+    $('pw').style.width = (charge * 70.6).toFixed(1) + '%';
+    requestAnimationFrame(chargeLoop);
+  }
+  var th = $('throw');
+  th.addEventListener('pointerdown', function (e) { e.preventDefault(); if (Date.now() < lockUntil) return; try { th.setPointerCapture(e.pointerId); } catch (x) { /* ок */ } charging = true; chargeT0 = performance.now(); th.classList.add('down'); try { navigator.vibrate && navigator.vibrate(15); } catch (x) { /* ок */ } chargeLoop(); });
+  function release() {
+    if (!charging) return; charging = false; th.classList.remove('down');
+    send({ t: 'roll', die: selDie, power: Math.max(0.15, charge) });
+    try { navigator.vibrate && navigator.vibrate([10, 40, 25]); } catch (x) { /* ок */ }
+    $('ask').className = 'btn'; lastAsk = null; lockUntil = Date.now() + 2500;
+    setTimeout(function () { $('pw').style.width = '0'; }, 400);
+  }
+  th.addEventListener('pointerup', release); th.addEventListener('pointercancel', release);
+  th.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
   // ---------- разговор ----------
   function showLich(text, roll) {
