@@ -199,6 +199,23 @@ const MONSTER_TOOL = {
   },
 };
 
+// ---------- анкета жильца ----------
+// порядок рас — как в public/quiz.js
+const RACE_LOOK = [
+  'a burly orc with tusks, tiny round spectacles and a knitted scarf',
+  'a small sly goblin hugging a bundle of stolen spoons',
+  'a polite skeleton in a tattered waistcoat holding an abacus',
+  'a swamp hag kikimora with moss hair holding a jar of toadstool jam',
+  'a friendly translucent slime blob with a half-digested book inside',
+  'a nervous rat-man with a faintly glowing tail and a rolled map',
+  'a treasure chest mimic with sharp teeth, a long tongue and one curious eye',
+  'a huge mossy cave troll holding a tiny lantern',
+];
+const QUIZ_STEPS = ['race', 'from', 'fear', 'loot', 'phrase'];
+const QUIZ_ASK = ['Кто ты', 'Откуда тебя выгнали', 'Чего боишься', 'Что стащил с собой', 'Твоя коронная фраза'];
+const QUIZ_PROMPT = `Ты — старый лич на пенсии, сторож подземелья «Нижний Край». Новый монстр заселяется к тебе и отвечает на анкету жильца. Откликнись на его ответ одной фразой до 90 знаков: ворчливо, смешно, по существу ответа, с чёрным юмором про кости и подземный быт. Без кавычек, без эмодзи, без «кхе-кхе». Говори на языке ответа (русский или украинский).`;
+const QUIZ_TOOL = { name: 'lich_comment', description: 'Одна фраза лича', input_schema: { type: 'object', properties: { say: { type: 'string', description: 'Одна фраза, до 90 знаков' } }, required: ['say'] } };
+
 async function claude(env, { system, user, tool, maxTokens = 400, timeout = 20000, model }) {
   if (!env.ANTHROPIC_API_KEY) return { error: 'нет ключа ANTHROPIC_API_KEY в Cloudflare' };
   try {
@@ -264,6 +281,7 @@ export class Room {
     this.notes = [];
     this.quests = [];
     this.lastLich = null;
+    this.intro = '';             // '' — ещё не было, 'play' — идёт на экране, 'done' — прошло
     this.chain = Promise.resolve();
     this.seq = 0;
     this.turnNo = 0;             // ходы лича (без пауз)
@@ -285,6 +303,7 @@ export class Room {
           this.goal = s.goal || ''; this.notes = s.notes || []; this.quests = s.quests || [];
           this.seq = this.lastLich?.id || 0; this.turnNo = s.turnNo || 0; this.bonesAt = s.bonesAt ?? -99;
           this.lines = s.lines || []; this.votes = s.votes || {}; if (s.writer) this.writer = s.writer;
+          this.intro = s.intro === 'play' ? 'done' : (s.intro || '');
         }
       } catch (e) { console.error('restore', e); }
     });
@@ -294,7 +313,7 @@ export class Room {
     if (this.saveTimer) return;
     this.saveTimer = setTimeout(async () => {
       this.saveTimer = null;
-      try { await this.ctx.storage.put('snap', { players: [...this.players.values()], log: this.log.slice(-40), started: this.started, scene: this.scene, lastLich: this.lastLich, places: this.places, edges: this.edges, cur: this.cur, paths: this.paths, goal: this.goal, notes: this.notes, quests: this.quests, turnNo: this.turnNo, bonesAt: this.bonesAt, lines: this.lines.slice(-20), votes: this.votes, writer: this.writer }); } catch (e) { console.error('save', e); }
+      try { await this.ctx.storage.put('snap', { players: [...this.players.values()], log: this.log.slice(-40), started: this.started, scene: this.scene, lastLich: this.lastLich, places: this.places, edges: this.edges, cur: this.cur, paths: this.paths, goal: this.goal, notes: this.notes, quests: this.quests, turnNo: this.turnNo, bonesAt: this.bonesAt, lines: this.lines.slice(-20), votes: this.votes, writer: this.writer, intro: this.intro }); } catch (e) { console.error('save', e); }
     }, 400);
   }
 
@@ -336,6 +355,7 @@ export class Room {
       if (!buf) return new Response('нет портрета', { status: 404 });
       return new Response(buf, { headers: { 'content-type': 'image/jpeg', 'cache-control': 'private, max-age=600' } });
     }
+    if (url.pathname === '/api/race') return this.raceArt(Number(url.searchParams.get('i')));
     if (url.pathname === '/api/scene') {
       const buf = await this.ctx.storage.get(`scene:${Number(url.searchParams.get('i')) || 0}`);
       if (!buf) return new Response('нет картинки', { status: 404 });
@@ -357,6 +377,7 @@ export class Room {
     const close = () => {
       const c = this.conns.get(cid);
       if (!this.conns.delete(cid)) return;
+      if (c?.role === 'screen' && this.intro === 'play' && !this.hasScreen()) { this.intro = 'done'; this.state(); }
       if (c?.pid && this.players.has(c.pid) && ![...this.conns.values()].some((x) => x.pid === c.pid)) { this.players.get(c.pid).online = false; this.state(); }
     };
     server.addEventListener('close', close);
@@ -370,8 +391,8 @@ export class Room {
 
   view() {
     return {
-      t: 'state', started: this.started, scene: this.scene, lich: this.lastLich, places: this.places, edges: this.edges, cur: this.cur, paths: this.paths, goal: this.goal, notes: this.notes.slice(-6), quests: this.quests,
-      players: [...this.players.values()].map((p) => ({ pid: p.pid, name: p.name, race: p.race, monster: p.monster, gear: p.gear || [], fresh: p.fresh ?? -1, making: !!p.making, online: !!p.online, pv: p.pv || 0, bones: p.bones || 0 })),
+      t: 'state', started: this.started, intro: this.intro, scene: this.scene, lich: this.lastLich, places: this.places, edges: this.edges, cur: this.cur, paths: this.paths, goal: this.goal, notes: this.notes.slice(-6), quests: this.quests,
+      players: [...this.players.values()].map((p) => ({ pid: p.pid, name: p.name, race: p.race, monster: p.monster, gear: p.gear || [], fresh: p.fresh ?? -1, making: !!p.making, online: !!p.online, pv: p.pv || 0, bones: p.bones || 0, quiz: p.quizStep || 0, sealed: !!p.sealed })),
       log: this.log.slice(-8),
     };
   }
@@ -396,14 +417,24 @@ export class Room {
     if (c.role === 'screen') {
       if (m.t === 'start') { this.started = true; this.state(); this.turn({ kind: 'start' }); }
       else if (m.t === 'rolled') this.rolled(m.pid, m.die, m.n);
-      else if (m.t === 'reset') { this.players.clear(); this.log = []; this.started = false; this.lastLich = null; this.scene = 'Логово лича'; this.places = [{ name: 'Логово лича', v: 0 }]; this.edges = []; this.cur = 0; this.paths = []; this.goal = ''; this.notes = []; this.quests = []; this.turnNo = 0; this.bonesAt = -99; this.lines = []; this.votes = {}; this.writer = { cheat: '', critique: '', twists: [], at: 0 }; this.state(); }
+      else if (m.t === 'intro') { const v = m.on ? 'play' : 'done'; if (this.intro !== v && !(v === 'play' && this.intro === 'done')) { this.intro = v; this.state(); } }
+      else if (m.t === 'reset') { this.players.clear(); this.log = []; this.started = false; this.lastLich = null; this.scene = 'Логово лича'; this.places = [{ name: 'Логово лича', v: 0 }]; this.edges = []; this.cur = 0; this.paths = []; this.goal = ''; this.notes = []; this.quests = []; this.turnNo = 0; this.bonesAt = -99; this.lines = []; this.votes = {}; this.writer = { cheat: '', critique: '', twists: [], at: 0 }; this.intro = ''; this.state(); }
       else if (m.t === 'idle') this.idle();
       return;
     }
     const p = this.players.get(c.pid);
     if (!p) return;
     if (m.t === 'name') { p.name = clean(m.name, 20); this.state(); }
-    else if (m.t === 'make') this.make(p, m);
+    else if (m.t === 'make') { p.quizStep = 0; this.make(p, m); }
+    else if (m.t === 'quiz_at') {
+      const step = Math.max(1, Math.min(5, Number(m.step) || 1));
+      if (!p.quizStep || p.quizStep > 5 || p.sealed) { p.quiz = {}; p.sealed = false; p.quizMade = false; }
+      p.quizStep = step; this.state();
+      if (m.voice) this.cast({ t: 'quiz_say', kind: 'q', step, pid: p.pid, name: p.name }, 'screen');
+    }
+    else if (m.t === 'quiz') this.quiz(p, m);
+    else if (m.t === 'quiz_remake') { if (p.quiz && p.quizMade && !p.sealed && !p.making) this.make(p, this.quizMake(p)); }
+    else if (m.t === 'skip_intro') { if (this.intro === 'play') this.cast({ t: 'skip_intro' }, 'screen'); }
     else if (m.t === 'talking') this.cast({ t: 'talking', pid: p.pid, on: !!m.on }, 'screen');
     else if (m.t === 'gear') {
       const n = p.monster?.items?.length || 0;
@@ -482,6 +513,76 @@ export class Room {
     this.turn({ kind: 'roll', who, die, n: val });
   }
 
+  // ---------- анкета жильца: ответ → фраза лича; после 4-го ответа монстр лепится в фоне ----------
+  async quiz(p, m) {
+    const step = Number(m.step);
+    if (!(step >= 1 && step <= 5)) return;
+    const q = p.quiz || (p.quiz = {});
+    const key = QUIZ_STEPS[step - 1];
+    if (step === 4) {
+      const it = m.loot || {};
+      q.loot = { name: clean(it.name, 30), desc: clean(it.desc, 80), kind: ITEM_KINDS.includes(it.kind) ? it.kind : 'chest' };
+      if (!q.loot.name) return;
+    } else {
+      const v = clean(m.text, step === 5 ? 140 : 160);
+      if (!v) return;
+      q[key] = v;
+    }
+    p.quizStep = Math.max(p.quizStep || 1, step + 1);
+    this.state();
+    if (step === 4 && !p.quizMade) { p.quizMade = true; this.make(p, this.quizMake(p)); }
+    let say = clean(m.c, 160);
+    if (m.custom || !say) {
+      const r = await claude(this.env, { system: QUIZ_PROMPT, tool: QUIZ_TOOL, maxTokens: 160, timeout: 6000, user: `Вопрос анкеты: ${QUIZ_ASK[step - 1]}?\nРаса жильца: ${q.race || 'ещё не сказал'}\nОтвет (${p.name || 'жилец'}): ${q[key]}` });
+      say = clean(r.out?.say, 160) || clean(m.spare, 160) || 'Хм. Запишу.';
+    }
+    for (const [cid, c] of this.conns) if (c.pid === p.pid) this.send(cid, { t: 'quiz_c', step, text: say });
+    this.cast({ t: 'quiz_say', kind: 'c', step, pid: p.pid, name: p.name, text: say }, 'screen');
+    if (step < 5) this.cast({ t: 'quiz_say', kind: 'q', step: step + 1, pid: p.pid, name: p.name }, 'screen');
+    else this.trySeal(p);
+  }
+
+  quizMake(p) {
+    const q = p.quiz || {};
+    const legend = [q.from && `Откуда выгнали: ${q.from}.`, q.fear && `Чего боится: ${q.fear}.`, q.loot && `Стащил с собой: ${q.loot.name}.`, q.phrase && `Коронная фраза: «${q.phrase}».`].filter(Boolean).join(' ');
+    return { race: q.race, legend, loot: q.loot, quiz: true };
+  }
+
+  // печать ставится, когда и анкета пройдена, и монстр слеплен
+  trySeal(p) {
+    if (p.sealed || (p.quizStep || 0) < 6 || !p.monster || p.making || !p.quizMade) return;
+    if (p.quiz?.phrase) p.monster.phrase = clean(p.quiz.phrase, 80);
+    p.sealed = true;
+    this.cast({ t: 'seal', pid: p.pid, name: this.label(p) });
+    this.state();
+    if (this.started) this.turn({ kind: 'join', who: this.label(p) });
+    else this.autoStart();
+  }
+
+  // все, кто на связи, заселены — через несколько секунд игра начинается сама
+  autoStart() {
+    clearTimeout(this.autoT);
+    this.autoT = setTimeout(() => {
+      const on = [...this.players.values()].filter((p) => p.online);
+      if (this.started || !on.length || on.some((p) => !p.monster || p.making || (p.quizStep >= 1 && p.quizStep <= 5) || (p.quizStep === 6 && !p.sealed))) return;
+      this.started = true; this.state(); this.turn({ kind: 'start' });
+    }, 7000);
+  }
+
+  // картинки рас для анкеты: рисуются один раз и хранятся в отдельной «комнате» __art__
+  async raceArt(i) {
+    if (!(i >= 0 && i < RACE_LOOK.length)) return new Response('нет такой расы', { status: 404 });
+    const key = `race:${i}`;
+    let buf = await this.ctx.storage.get(key);
+    if (!buf) {
+      this.artJobs = this.artJobs || new Map();
+      if (!this.artJobs.has(i)) this.artJobs.set(i, genPortrait(this.env, RACE_LOOK[i]).then(async (b) => { if (b && b.byteLength < 1_900_000) await this.ctx.storage.put(key, b); return b; }).finally(() => this.artJobs.delete(i)));
+      buf = await this.artJobs.get(i);
+    }
+    if (!buf) return new Response('картинка не нарисовалась', { status: 503 });
+    return new Response(buf, { headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=604800' } });
+  }
+
   async make(p, m) {
     if (p.making) return;
     p.race = clean(m.race, 30) || 'Монстр';
@@ -503,12 +604,14 @@ export class Room {
       name: clean(o.name, 24), title: clean(o.title, 40), race: p.race,
       traits: (o.traits || []).slice(0, 3).map((t) => clean(t, 30)),
       skills: (o.skills || []).slice(0, 3).map((s) => ({ name: clean(s.name, 30), desc: clean(s.desc, 90), die: DICE.includes(s.die) ? s.die : 'd20' })),
-      items: (o.items || []).slice(0, 6).map((it) => ({ name: clean(it.name, 30), desc: clean(it.desc, 80), kind: ITEM_KINDS.includes(it.kind) ? it.kind : 'chest' })),
+      items: [...(m.loot ? [{ ...m.loot, stolen: true }] : []), ...(o.items || []).map((it) => ({ name: clean(it.name, 30), desc: clean(it.desc, 80), kind: ITEM_KINDS.includes(it.kind) ? it.kind : 'chest' }))].slice(0, 6),
       hp: Math.max(6, Math.min(20, Number(o.hp) || 10)), weakness: clean(o.weakness, 80), phrase: clean(o.phrase, 80),
     };
-    p.gear = [];
+    if (m.quiz && p.quiz?.phrase) p.monster.phrase = clean(p.quiz.phrase, 80);
+    p.gear = m.loot ? [0] : [];
     this.state();
-    if (this.started) this.turn({ kind: 'join', who: this.label(p) });
+    if (m.quiz) this.trySeal(p);
+    else if (this.started) this.turn({ kind: 'join', who: this.label(p) });
     // портрет рисуется в фоне, игру не задерживает
     this.ctx.waitUntil((async () => {
       const bytes = await genPortrait(this.env, o.look_en);
@@ -620,7 +723,8 @@ export class Room {
       игрок: p.name, имя: p.monster.name, раса: p.monster.race, прозвище: p.monster.title, черты: p.monster.traits,
       умения: p.monster.skills.map((s) => `${s.name} (${s.die}): ${s.desc}`), амуниция: (p.gear || []).map((i) => p.monster.items?.[i]).filter(Boolean).map((it) => `${it.name}: ${it.desc}`), здоровье: p.monster.hp, кости: p.bones || 0, слабость: p.monster.weakness, легенда: p.legend,
     }));
-    const what = ev.kind === 'start' ? 'Игра началась. Встреть монстров в своём логове: коротко представься, подколи каждого по его легенде и предложи первое дело в подземелье.'
+    const what = ev.kind === 'start' && this.intro === 'done' ? 'Игра началась. Ты уже представился в интро и заселил монстров по анкете — не повторяйся. Отведи их в нору, назови по именам и предложи первое дело в подземелье.'
+      : ev.kind === 'start' ? 'Игра началась. Встреть монстров в своём логове: коротко представься, подколи каждого по его легенде и предложи первое дело в подземелье.'
       : ev.kind === 'join' ? `К игре присоединился новый монстр: ${ev.who}. Коротко поприветствуй его и встрой в происходящее.`
       : ev.kind === 'roll' ? `${ev.who} бросил ${ev.die}, выпало ${ev.n}. Расскажи, что из этого вышло.`
       : idle ? `За столом полминуты тишина. Сделай одно живое короткое действие, сюжет не двигай: достань кость и разглядывай её, полистай летопись, поправь усы или подколи того, кто давно молчит${ev.who ? ` (${ev.who})` : ''}. Одна фраза до 120 знаков. Без броска, без костей, без новых мест. Выбери gesture: think, listen или laugh.`
@@ -738,6 +842,7 @@ export default {
       const url = new URL(request.url);
       if (url.pathname === '/api/new') return Response.json({ room: randomCode(5) });
       if (url.pathname === '/api/status') return Response.json({ brain: !!env.ANTHROPIC_API_KEY, voice: !!(env.ELEVENLABS_API_KEY && env.ELEVENLABS_VOICE_ID), ears: !!env.ELEVENLABS_API_KEY, art: !!env.AI });
+      if (url.pathname === '/api/race') return env.ROOMS.get(env.ROOMS.idFromName('__art__')).fetch(request);
       if (url.pathname === '/ws' || url.pathname === '/api/portrait' || url.pathname === '/api/scene') {
         const room = roomOf(url, 'room');
         if (room.length < 4) return new Response('Bad room code', { status: 400 });

@@ -23,7 +23,7 @@
 
   var ws = null, room = '', pid = store.get('nk_pid'), state = null, me = null, race = null, wantRemake = false, lastAsk = null;
   var err = function (t) { $('err').textContent = t || ''; };
-  var show = function (v) { ['join', 'race', 'legend', 'wait', 'play'].forEach(function (n) { $('v-' + n).hidden = n !== v; }); };
+  var show = function (v) { ['join', 'intro', 'quiz', 'race', 'legend', 'wait', 'play'].forEach(function (n) { $('v-' + n).hidden = n !== v; }); };
 
   // ---------- вход ----------
   $('name').value = store.get('nk_name');
@@ -51,7 +51,9 @@
     else if (m.t === 'lich') { showLich(m.text, m.roll, m.id); }
     else if (m.t === 'votes' && m.mine && m.mine[pid] != null) { myVote[m.id] = m.mine[pid]; markVote(); }
     else if (m.t === 'bones' && m.pid === pid) { toastBones(m); try { navigator.vibrate && navigator.vibrate(m.n > 0 ? [20, 40, 20, 40, 60] : 40); } catch (x) { /* ок */ } }
-    else if (m.t === 'make_failed') { err(m.text); wantRemake = true; render(); }
+    else if (m.t === 'make_failed') { err(m.text); if (oldFlow) wantRemake = true; else { qFailed = true; if (qStep > 5) drawQuiz(); } render(); }
+    else if (m.t === 'quiz_c') { qSaid = m.text; qSaidStep = m.step; drawQuizLich(); }
+    else if (m.t === 'seal' && m.pid === pid) { sealPop(); }
     else if (m.t === 'gift' && m.pid === pid) { selItem = m.i; ping('gear'); toastGift(m.item); try { navigator.vibrate && navigator.vibrate([30, 60, 30]); } catch (x) { /* ок */ } }
   }
 
@@ -59,6 +61,9 @@
   var tab = 'sheet', selItem = -1, selDie = 'd20';
   function render() {
     if (!me) return;
+    if (sealOpen) return;
+    var inQuiz = me.quiz >= 1 && !me.sealed;
+    if (!oldFlow && (inQuiz || (!me.monster && !me.making) || wantRemake)) return renderQuiz(inQuiz);
     if (me.making) return show('wait');
     if (me.monster && !wantRemake) {
       drawSheet(); drawGear(); drawPaths(); if (state.lich) showLich(state.lich.text, state.lich.roll, state.lich.id);
@@ -102,7 +107,100 @@
     send({ t: 'make', race: race.id, legend: $('legend').value.trim() });
     show('wait');
   });
-  $('remake').addEventListener('click', function () { wantRemake = true; show('race'); });
+  $('remake').addEventListener('click', function () { wantRemake = true; render(); });
+  $('to-quiz').addEventListener('click', function () { oldFlow = false; render(); });
+
+  // ---------- анкета жильца: пять вопросов, лич отвечает на каждый ----------
+  var Q = window.NKQuiz, oldFlow = false, sawIntro = false, introSeenAt = 0, qStep = 0, qSaid = '', qSaidStep = 0, qLoot = null, qFailed = false, sealOpen = false;
+  var pick = function (a) { return a[Math.floor(Math.random() * a.length)]; };
+  function renderQuiz(inQuiz) {
+    // интро идёт на экране — ждём «Ты кто такой?» (но не дольше 50 секунд)
+    if (state.intro === 'play' && !inQuiz) {
+      if (!sawIntro) { sawIntro = true; introSeenAt = Date.now(); setTimeout(render, 50000); }
+      if (Date.now() - introSeenAt < 50000) return show('intro');
+    }
+    if (!inQuiz) {                           // новая анкета
+      wantRemake = false; qFailed = false; qSaid = ''; qSaidStep = 0; qLoot = null; err('');
+      me.quiz = 1; me.sealed = false; qStep = 0;
+      send({ t: 'quiz_at', step: 1, voice: !sawIntro });
+    }
+    // шаг только растёт: старое состояние с сервера не откатывает уже отвеченный вопрос
+    var want = Math.max(qStep, me.quiz || 1);
+    if (want !== qStep) { qStep = want; drawQuiz(); }
+    show('quiz');
+  }
+  function drawQuizLich() {
+    var q = Q.Q[qStep - 1];
+    var said = qSaid && qSaidStep === qStep - 1 ? '<i>Лич</i>' + esc(qSaid) : qStep === 1 ? (sawIntro ? '<i>Лич</i>Ты кто такой?' : '<i>Лич</i>Новенький? Сейчас запишу. Отвечай быстро, у меня свеча не казённая.') : '<i>Лич</i>…';
+    if (qStep > 5) said = qSaid && qSaidStep === 5 ? '<i>Лич</i>' + esc(qSaid) : '<i>Лич</i>Так-так…';
+    $('q-said').innerHTML = said;
+    if (q) $('q-ask').textContent = q.q;
+  }
+  function drawQuiz() {
+    var st = qStep, body = '', foot = '';
+    $('q-num').textContent = st <= 5 ? 'Анкета жильца · ' + st + ' из 5' : 'Анкета заполнена';
+    $('q-dots').innerHTML = [1, 2, 3, 4, 5].map(function (k) { return '<i class="' + (k < st ? 'on' : k === st ? 'now' : '') + '"></i>'; }).join('');
+    $('q-custom').hidden = !(st === 2 || st === 3 || st === 5);
+    $('q-ask').hidden = st > 5;
+    if (st === 1) {
+      body = '<div class="races8">' + Q.RACES.map(function (r, i) { return '<button type="button" class="btn rcard" data-r="' + i + '"><span class="pic">' + esc(r.id.charAt(0)) + '<img src="/api/race?i=' + i + '" alt="" loading="eager" onerror="this.remove()"></span><b>' + esc(r.id) + '</b><small>' + esc(r.hint) + '</small></button>'; }).join('') + '</div>';
+      foot = '<button class="btn dark" id="q-old" type="button" style="width:100%">Старый вход: раса и легенда</button>';
+    } else if (st === 2 || st === 3) {
+      body = '<div class="row">' + (st === 2 ? Q.FROM : Q.FEAR).map(function (o, i) { return '<button type="button" class="btn leg" data-o="' + i + '">' + esc(o.t) + '</button>'; }).join('') + '</div>';
+    } else if (st === 4) {
+      if (!qLoot) { var pool = Q.LOOT.slice(); qLoot = []; while (qLoot.length < 3) qLoot.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]); }
+      body = '<div class="loot3">' + qLoot.map(function (it, i) { return '<button type="button" class="btn lcard" data-l="' + i + '"><img src="/img/items/' + esc(it.kind) + '.webp" alt=""><div><b>' + esc(it.name) + '</b><span>' + esc(it.desc) + '</span></div></button>'; }).join('') + '</div>';
+    } else if (st > 5) {
+      body = qFailed
+        ? '<div class="muted" style="text-align:center">Монстр не слепился. Ответы целы — попробуем ещё раз.</div><button class="btn main" id="q-retry" type="button" style="width:100%">Слепить ещё раз</button>'
+        : '<h2 style="text-align:center">Лич ставит печать <span class="flame"></span></h2><div class="muted" style="text-align:center">Кости, глина, немного плесени. Смотри на экран.</div>';
+    }
+    var say = $('q-say');
+    if (st === 5) { say.className = 'sealbtn'; say.innerHTML = NKUI.seal('horn'); $('q-say-label').hidden = false; $('q-or').hidden = true; $('q-txt').placeholder = 'или напиши фразу'; }
+    else { say.className = 'btn'; say.textContent = 'Зажми и скажи своё'; $('q-say-label').hidden = true; $('q-or').hidden = false; $('q-txt').placeholder = 'или напиши'; }
+    $('q-txt').value = '';
+    $('q-body').innerHTML = body; $('q-foot').innerHTML = foot;
+    drawQuizLich();
+    window.scrollTo(0, 0);
+  }
+  function answer(payload) {
+    if (qStep < 1 || qStep > 5) return;
+    payload.t = 'quiz'; payload.step = qStep;
+    if (payload.custom) payload.spare = pick(Q.SPARE[qStep] || ['Хм. Запишу.']);
+    send(payload);
+    try { navigator.vibrate && navigator.vibrate(12); } catch (x) { /* ок */ }
+    me.quiz = qStep + 1; qStep = me.quiz; drawQuiz();
+  }
+  $('q-body').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.r != null) { var r = Q.RACES[Number(b.dataset.r)]; race = { id: r.id }; answer({ text: r.id, c: r.c }); }
+    else if (b.dataset.o != null) { var o = (qStep === 2 ? Q.FROM : Q.FEAR)[Number(b.dataset.o)]; answer({ text: o.t, c: o.c }); }
+    else if (b.dataset.l != null) { var it = qLoot[Number(b.dataset.l)]; answer({ loot: { name: it.name, kind: it.kind, desc: it.desc }, c: it.c }); }
+    else if (b.id === 'q-retry') { qFailed = false; err(''); send({ t: 'quiz_remake' }); drawQuiz(); }
+  });
+  $('q-foot').addEventListener('click', function (e) {
+    if (e.target.closest('#q-old')) { oldFlow = true; show('race'); }
+  });
+  $('q-form').addEventListener('submit', function (e) {
+    e.preventDefault(); var v = $('q-txt').value.trim(); if (!v) return;
+    answer({ text: v, custom: true });
+  });
+  $('skip-intro').addEventListener('click', function () { send({ t: 'skip_intro' }); });
+
+  // печать: карта монстра с портретом, потом — в нору
+  function sealPop() {
+    if (sealOpen) return;
+    sealOpen = true;
+    var m = (me && me.monster) || {};
+    var img = me && me.pv ? ' style="background-image:url(\'/api/portrait?room=' + room + '&pid=' + encodeURIComponent(pid) + '&v=' + me.pv + '\')"' : '';
+    var d = document.createElement('div'); d.id = 'seal-pop';
+    d.innerHTML = '<div class="card paper"><div class="label" style="color:#7a2a12">Новый жилец</div><div class="ph"' + img + '>' + (me && me.pv ? '' : esc((m.name || '?').charAt(0))) + '</div><h3>' + esc(m.name || '') + '</h3><div>' + esc(m.title || '') + ' · ' + esc(m.race || '') + '</div><div class="q">«' + esc(m.phrase || '') + '»</div><div class="stamp">' + NKUI.seal('skull') + '</div></div>';
+    document.body.appendChild(d);
+    try { navigator.vibrate && navigator.vibrate([20, 80, 60]); } catch (x) { /* ок */ }
+    var close = function () { if (!sealOpen) return; sealOpen = false; d.remove(); qStep = 0; render(); setTab('sheet'); };
+    d.addEventListener('click', close);
+    setTimeout(close, 5200);
+  }
 
   // ---------- лист персонажа ----------
   var SK_IC = ['sword', 'eye', 'star'];
@@ -280,6 +378,7 @@
     btn.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   }
   hold($('talk'), function (text) { $('heard').textContent = 'Ты: ' + text; send({ t: 'say', text: text }); });
+  hold($('q-say'), function (text) { $('q-txt').value = text; answer({ text: text, custom: true }); });
   hold($('dictate'), function (text) { $('heard').textContent = ''; var a = $('legend'); a.value = (a.value ? a.value + ' ' : '') + text; });
 
   if ($('room').value && $('name').value && store.get('nk_pid')) { /* вернулся: одно нажатие «Войти» */ }

@@ -154,6 +154,42 @@ body.play{padding-bottom:calc(118px + env(safe-area-inset-bottom));padding-top:c
 #paths .btn{min-height:48px;font-size:15px;padding:8px 12px}
 #lich .paper{font-size:16px;line-height:1.28;padding:12px 14px}
 #form input{min-width:0}
+
+/* анкета жильца */
+.qhead{display:grid;gap:6px;justify-items:center}
+.qdots{display:flex;gap:6px}
+.qdots i{width:26px;height:8px;border:2px solid var(--ink-soft);display:block}
+.qdots i.on{background:var(--candle);border-color:var(--candle)}
+.qdots i.now{border-color:var(--paper);animation:pulse 1.2s ease-in-out infinite}
+#q-lich{display:grid;grid-template-columns:60px 1fr;gap:12px;align-items:start}
+#q-lich .face{width:60px;height:60px;border-radius:50%;border:3px solid var(--ink-dark);box-shadow:0 0 0 3px var(--paper-2),0 0 0 5px var(--ink-dark);background:#000 url(/img/lich_closed.webp) 50% 20%/270% auto}
+#q-lich .paper{padding:10px 14px;font-size:16px;line-height:1.28;min-height:60px}
+#q-lich .paper::after{content:"";position:absolute;left:-12px;top:18px;width:18px;height:18px;background:var(--paper-2);border-left:3px solid var(--ink-dark);border-bottom:3px solid var(--ink-dark);transform:rotate(45deg)}
+#q-lich .paper i{display:block;font-style:normal;color:#7a2a12;font-family:var(--label);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:11px;margin-bottom:2px}
+#q-ask{text-align:center;font-size:27px;line-height:1.1}
+.races8{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.rcard{display:grid;gap:6px;justify-items:center;padding:10px 8px 12px;text-transform:none;letter-spacing:0}
+.rcard .pic{position:relative;width:100%;aspect-ratio:1;border:2px solid var(--ink-dark);box-shadow:inset 0 0 0 2px var(--paper-2),inset 0 0 0 3px var(--ink-dark);background:#e2d3ae center/cover;display:grid;place-items:center;font-family:var(--display);font-size:48px;color:#6a5c47;overflow:hidden}
+.rcard .pic img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;filter:sepia(.25) contrast(1.05)}
+.rcard b{font-family:var(--display);font-weight:400;font-size:21px;line-height:1}
+.rcard small{font-family:var(--text);font-size:13px;line-height:1.15;color:#5c4f3d;font-weight:400}
+.loot3{display:grid;gap:12px}
+.lcard{display:grid;grid-template-columns:76px 1fr;gap:12px;align-items:center;text-align:left;text-transform:none;letter-spacing:0;padding:10px 12px}
+.lcard img{width:76px;height:76px;mix-blend-mode:multiply;background:#eadcb9;border:2px solid var(--ink-dark)}
+.lcard b{display:block;font-family:var(--display);font-weight:400;font-size:21px;line-height:1.05}
+.lcard span{font-family:var(--text);font-weight:400;font-size:15px;line-height:1.2;color:#3a2f22}
+#q-custom{display:grid;gap:10px}
+#q-custom .or{text-align:center}
+#q-say.btn{width:100%}
+#q-say.sealbtn .seal{width:100%}
+#seal-pop{position:fixed;inset:0;z-index:10;display:grid;place-items:center;background:rgba(8,5,3,.82);padding:20px}
+#seal-pop .card{position:relative;width:min(88vw,380px);display:grid;justify-items:center;gap:6px;padding:18px 16px 26px;text-align:center;animation:giftIn .6s cubic-bezier(.2,1.4,.4,1) both}
+#seal-pop .ph{width:62%;aspect-ratio:1;border-radius:50%;background:#1b1613 center/cover;border:4px solid var(--ink-dark);box-shadow:0 0 0 3px var(--paper-2),0 0 0 5px var(--ink-dark);display:grid;place-items:center;font-family:var(--display);font-size:72px;color:#6a5c47}
+#seal-pop h3{font-size:28px}
+#seal-pop .q{font-family:var(--hand);font-size:19px}
+#seal-pop .stamp{position:absolute;right:-4%;bottom:-6%;width:34%;aspect-ratio:1;transform:rotate(-14deg);animation:stamp .5s cubic-bezier(.3,1.6,.5,1) .8s both}
+#seal-pop .stamp .seal{width:100%;display:block;filter:drop-shadow(3px 5px 0 rgba(0,0,0,.5))}
+@keyframes stamp{0%{transform:rotate(-30deg) scale(3);opacity:0}70%{opacity:1}100%{transform:rotate(-14deg) scale(1);opacity:1}}
 </style>
 </head>
 <body>
@@ -167,9 +203,30 @@ body.play{padding-bottom:calc(118px + env(safe-area-inset-bottom));padding-top:c
     <button class="btn main" id="join" type="button">Войти в логово</button>
   </section>
 
+  <section class="view" id="v-intro" hidden>
+    <h2>Смотри на экран <span class="flame"></span></h2>
+    <div class="muted">Лич рассказывает, куда ты попал. Секунд тридцать — потом он спросит, кто ты такой, и анкета откроется здесь.</div>
+    <button class="btn dark" id="skip-intro" type="button">Пропустить интро</button>
+  </section>
+
+  <section class="view" id="v-quiz" hidden>
+    <div class="qhead"><div class="label" id="q-num">Анкета жильца</div><div class="qdots" id="q-dots"></div></div>
+    <div id="q-lich"><div class="face"></div><div class="paper" id="q-said"></div></div>
+    <h2 id="q-ask"></h2>
+    <div id="q-body"></div>
+    <div id="q-custom" hidden>
+      <div class="label or" id="q-or">или своё</div>
+      <button class="btn" id="q-say" type="button">Зажми и скажи своё</button>
+      <div class="seal-label" id="q-say-label" hidden>Зажми печать и скажи. Отпустил — лич услышал.</div>
+      <form id="q-form"><input id="q-txt" type="text" maxlength="140" autocomplete="off" placeholder="или напиши" aria-label="Свой ответ"><button class="btn" type="submit">Ответить</button></form>
+    </div>
+    <div id="q-foot"></div>
+  </section>
+
   <section class="view" id="v-race" hidden>
     <h2>Кто ты такой</h2>
     <div class="grid2" id="races"></div>
+    <button class="btn dark" id="to-quiz" type="button">Назад к анкете жильца</button>
   </section>
 
   <section class="view" id="v-legend" hidden>
@@ -233,6 +290,7 @@ body.play{padding-bottom:calc(118px + env(safe-area-inset-bottom));padding-top:c
   <button type="button" data-tab="talk" data-ic="talk">Разговор</button>
 </div></nav>
 <script src="/ui.js"></script>
+<script src="/quiz.js"></script>
 <script src="/pad.js"></script>
 </body>
 </html>

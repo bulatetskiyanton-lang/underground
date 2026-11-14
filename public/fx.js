@@ -192,12 +192,13 @@ void main(){vec2 fc=vec2(gl_FragCoord.x,uRes.y-gl_FragCoord.y);
   const tracks = {};
   async function loadTrack(name, url) { try { const r = await fetch(url); if (r.ok) tracks[name] = await r.json(); } catch { /* без трекинга */ } }
 
-  let eyesOn = 1, eyeI = 1;
+  let eyesOn = 1, eyeI = 1, shown = 1;
   return {
     loadTrack,
-    get light() { return light; },
+    get light() { return shown; },
     hasTrack(n) { return !!tracks[n]; },
-    // s: { active: 'idle'|'talk', time, speaking, level, listening, thinking, blink, mood, enabled }
+    // s: { active: 'idle'|'talk', time, speaking, level, listening, thinking, blink, mood, enabled,
+    //      dim: 0..1 — свеча притушена (интро), eyesOff — глазницы пустые, eyeBoost — вспышка огня }
     step(now, dt, s) {
       resize();
       if (!W) return;
@@ -211,10 +212,14 @@ void main(){vec2 fc=vec2(gl_FragCoord.x,uRes.y-gl_FragCoord.y);
       if (s.speaking) wantI = 1.05 + Math.min(0.9, (s.level || 0) * 6);
       if (s.mood === 'злится') wantI *= 1.35;
       if (s.mood === 'шепчет') wantI *= 0.7;
+      if (s.eyeBoost) wantI *= s.eyeBoost;
       eyeI = lerp(eyeI, wantI, Math.min(1, dt * 8));
-      eyesOn = lerp(eyesOn, s.blink || seen < 0.5 ? 0 : 1, Math.min(1, dt * (s.blink ? 30 : 12)));
+      eyesOn = lerp(eyesOn, s.blink || s.eyesOff || seen < 0.5 ? 0 : 1, Math.min(1, dt * (s.blink ? 30 : 12)));
+      const real = light;
+      light = shown = real * (s.dim == null ? 1 : s.dim);
       drawShade();
       drawGlow(now, s.enabled ? eyesOn : 0, eyeI, ox, oy, dt);
+      light = real;
     },
   };
 }

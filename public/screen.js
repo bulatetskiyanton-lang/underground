@@ -20,6 +20,28 @@ fetch('/api/status').then((r) => r.json()).then((s) => {
 }).catch(() => {});
 
 // ---------- вход ----------
+// голос интро просим заранее, пока человек ещё не нажал «Открыть логово»
+const Q = window.NKQuiz;
+const lineBlob = {};
+let voiceDead = false, linesCache = null;
+async function voiceFor(text) {
+  if (lineBlob[text]) return lineBlob[text];
+  if (voiceDead) return null;
+  try {
+    if (linesCache === null) { try { linesCache = await caches.open('nk-lines-1'); } catch { linesCache = false; } }
+    const key = '/line/' + encodeURIComponent(text);
+    let r = linesCache && await linesCache.match(key);
+    if (!r) {
+      r = await fetch('/api/voice', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) });
+      if (!r.ok) { voiceDead = true; return null; }      // ключа нет или ElevenLabs молчит — дальше только текст
+      if (linesCache) await linesCache.put(key, r.clone());
+    }
+    return (lineBlob[text] = await r.blob());
+  } catch { return null; }
+}
+async function loadLines(list) { for (const t of list) { if (voiceDead) return; await voiceFor(t); } }
+const introVoice = loadLines(Q.INTRO);
+
 $('open').addEventListener('click', async () => {
   try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); analyser = audioCtx.createAnalyser(); analyser.fftSize = 512; analyser.connect(audioCtx.destination); } catch { audioCtx = null; }
   room = (new URLSearchParams(location.search).get('room') || localStorage.getItem('nk_screen_room') || '').toUpperCase();
@@ -35,6 +57,7 @@ $('open').addEventListener('click', async () => {
   startVideo();
   connect();
   requestAnimationFrame(frame);
+  introVoice.then(() => loadLines(Q.lines()));       // реплики анкеты — в фоне, после интро
 });
 
 function connect() {
@@ -48,8 +71,8 @@ setInterval(() => send({ t: 'ping' }), 20000);
 const err = (t) => { $('err').textContent = t || ''; };
 
 function onMsg(m) {
-  if (m.t === 'state') { state = m; renderState(); if (m.lich && m.lich.id > lastLichId && !speaking) { lastLichId = m.lich.id; showLine(m.lich.text, false); showAsk(m.lich.roll); } }
-  else if (m.t === 'lich') { direct(m.roll ? 'кубик' : m.focus, m.focusPid); hush(); lastLichId = m.id; mood = m.mood || ''; stopGesture(['think', 'listen']); if (m.gesture && clipUrl[m.gesture]) gesture(m.gesture); else if (m.roll) gesture('dice'); else if (m.mood === 'смеётся') gesture('laugh'); else if (m.mood === 'злится') gesture('angry'); else if (m.gesture) gesture(m.gesture); else if ((state.paths || []).length) gesture('point'); $('mood').textContent = m.mood || 'говорит'; showAsk(m.roll); speak(m.text); }
+  if (m.t === 'state') { state = m; renderState(); maybeIntro(); if (m.lich && m.lich.id > lastLichId && !speaking) { lastLichId = m.lich.id; showLine(m.lich.text, false); showAsk(m.lich.roll); } }
+  else if (m.t === 'lich') { direct(m.roll ? 'кубик' : m.focus, m.focusPid); hush(); lastLichId = m.id; $('tab').textContent = 'ЛИЧ'; mood = m.mood || ''; stopGesture(['think', 'listen']); if (m.gesture && clipUrl[m.gesture]) gesture(m.gesture); else if (m.roll) gesture('dice'); else if (m.mood === 'смеётся') gesture('laugh'); else if (m.mood === 'злится') gesture('angry'); else if (m.gesture) gesture(m.gesture); else if ((state.paths || []).length) gesture('point'); $('mood').textContent = m.mood || 'говорит'; showAsk(m.roll); speak(m.text); }
   else if (m.t === 'think') { hush(); thinking = !!m.on; if (thinking) { $('mood').textContent = 'думает'; if (!m.idle) { gesture('think'); if (Math.random() < 0.6) setTimeout(() => { if (thinking && !speaking) quip('think'); }, 900); } } }
   else if (m.t === 'talking') { hush(); if (m.on) { listening.add(m.pid); stopSpeak(); gesture('listen'); } else { listening.delete(m.pid); if (!listening.size) stopGesture(['listen']); } }
   else if (m.t === 'said') { hush(); addLog(m.name, m.text); }
@@ -59,6 +82,13 @@ function onMsg(m) {
   else if (m.t === 'do_roll') { direct('кубик'); doRoll(m.pid, m.die, m.power); quip('roll'); }
   else if (m.t === 'gift') { gesture('give'); showGift(m); }
   else if (m.t === 'scene') { gesture('map'); showScene(m, true); direct('место'); }
+  else if (m.t === 'quiz_say') onQuizSay(m);
+  else if (m.t === 'seal') {
+    // печать видно сразу, голос — в очередь сразу после отклика на коронную фразу
+    showGift({ seal: true, pid: m.pid, name: m.name }); gesture('give');
+    sayQ.push({ text: Q.SEAL, name: m.name, pid: m.pid, seal: m }); pumpSay();
+  }
+  else if (m.t === 'skip_intro') skipIntro();
   else if (m.t === 'error') err(m.text);
 }
 
@@ -73,12 +103,14 @@ function renderState() {
   $('players').innerHTML = ps.map((p) => {
     const m = p.monster;
     const img = p.pv ? `style="background-image:url('/api/portrait?room=${room}&pid=${encodeURIComponent(p.pid)}&v=${p.pv}')"` : '';
-    if (!m) return `<div class="card"><div class="ph">?</div><div><h3>${esc(p.name || 'Кто-то')}</h3><div class="t">${p.making ? 'лич лепит монстра…' : 'выбирает монстра'}</div></div></div>`;
+    const inQuiz = p.quiz >= 1 && !p.sealed;
+    if (!m || inQuiz) return `<div class="card" data-pid="${esc(p.pid)}"><div class="ph">?</div><div><h3>${esc(p.name || 'Кто-то')}</h3><div class="t">${inQuiz ? (p.quiz <= 5 ? `анкета жильца · ${p.quiz} из 5` : 'лич ставит печать…') : p.making ? 'лич лепит монстра…' : 'выбирает монстра'}</div>${inQuiz ? `<div class="qdots">${[1, 2, 3, 4, 5].map((k) => `<i class="${k < p.quiz ? 'on' : ''}"></i>`).join('')}</div>` : ''}</div></div>`;
     const gear = (p.gear || []).map((i) => (m.items || [])[i]).filter(Boolean).map((it) => `<img src="/img/items/${esc(it.kind)}.webp" alt="${esc(it.name)}" title="${esc(it.name)}">`).join('');
     return `<div class="card ${listening.has(p.pid) ? 'live' : ''}" data-pid="${esc(p.pid)}"><div class="ph" ${img}>${p.pv ? '' : esc(m.name[0] || '?')}</div><div><h3>${esc(m.name)}</h3><div class="t">${esc(m.title)} · ${esc(p.name || '')}</div><div class="hp">здоровье ${m.hp}<span class="bn" title="кости"><img src="/img/items/bone.webp" alt="">${p.bones || 0}</span>${p.online ? '' : ' · не в сети'}</div>${gear ? `<div class="gear">${gear}</div>` : ''}</div></div>`;
   }).join('') || '<div class="url">Пока никого. Наведи камеру телефона на код.</div>';
-  const ready = ps.some((p) => p.monster);
+  const ready = ps.some((p) => p.monster) && !ps.some((p) => p.quiz >= 1 && !p.sealed);
   $('start').hidden = state.started || !ready;
+  document.querySelectorAll('.giftcard.sealcard[data-pid]').forEach((c) => { const p = ps.find((x) => x.pid === c.dataset.pid); if (p && p.pv) { const ph = c.querySelector('.ph'); ph.style.backgroundImage = `url('/api/portrait?room=${room}&pid=${encodeURIComponent(p.pid)}&v=${p.pv}')`; ph.textContent = ''; } });
   $('log').innerHTML = (state.log || []).slice(-3).map((l) => `<div><b>${esc(l.who)}</b> ${esc(l.text)}</div>`).join('');
 }
 function addLog(who, text) {
@@ -153,9 +185,17 @@ function nextGift() {
   giftBusy = true;
   const box = $('giftfx');
   const c = document.createElement('div'); c.className = 'giftcard';
-  c.innerHTML = `<small>${esc(m.name)} получает</small><img src="/img/items/${esc(m.item.kind)}.webp" alt=""><b>${esc(m.item.name)}</b><p>${esc(m.item.desc)}</p>`;
+  if (m.seal) {
+    const p = (state.players || []).find((x) => x.pid === m.pid) || {}, mo = p.monster || {};
+    const img = p.pv ? `style="background-image:url('/api/portrait?room=${room}&pid=${encodeURIComponent(p.pid)}&v=${p.pv}')"` : '';
+    c.className = 'giftcard sealcard'; c.dataset.pid = m.pid;
+    c.innerHTML = `<small>Новый жилец · ${esc(mo.race || '')}</small><div class="ph" ${img}>${p.pv ? '' : esc((mo.name || '?')[0])}</div><b>${esc(mo.name || m.name)}</b><p>${esc(mo.title || '')}</p><p class="ph-q">«${esc(mo.phrase || '')}»</p><span class="stamp">принят<br>в нору</span>`;
+    addLog('Лич', 'заселил: ' + (mo.name || m.name));
+  } else {
+    c.innerHTML = `<small>${esc(m.name)} получает</small><img src="/img/items/${esc(m.item.kind)}.webp" alt=""><b>${esc(m.item.name)}</b><p>${esc(m.item.desc)}</p>`;
+    addLog(m.name, 'получил: ' + m.item.name);
+  }
   box.appendChild(c);
-  addLog(m.name, 'получил: ' + m.item.name);
   setTimeout(() => {
     const card = document.querySelector(`.card[data-pid="${CSS.escape(m.pid)}"]`);
     if (card) {
@@ -165,7 +205,7 @@ function nextGift() {
     } else { c.style.setProperty('--fx', '-60vw'); c.style.setProperty('--fy', '0px'); }
     c.classList.add('fly');
     setTimeout(() => { c.remove(); if (card) { card.classList.add('live'); setTimeout(() => card.classList.remove('live'), 900); } nextGift(); }, 720);
-  }, 3600);
+  }, m.seal ? 4600 : 3600);
 }
 
 // ---------- кости: лич награждает — кость с числом вылетает и летит в карточку монстра ----------
@@ -237,6 +277,13 @@ function quip(kind) {
   speak(lastQuip, quipBlob[lastQuip]);
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// сказать фразу и дождаться конца. blob — готовый голос, 'mute' — только текстом
+async function sayLine(text, blob) {
+  await speak(text, blob || 'mute');
+  const my = speakSeq;
+  while (speaking && my === speakSeq) await sleep(80);
+  return my === speakSeq;
+}
 
 async function speak(text, ready) {
   const overQuip = !ready && curAudio && curAudio.quip && !curAudio.ended;
@@ -244,7 +291,7 @@ async function speak(text, ready) {
   const my = ++speakSeq;
   if (!overQuip) { lineText = text; $('said').textContent = ''; $('rest').textContent = text; }
   if (!ready) thinking = true;
-  let blob = ready || null;
+  let blob = ready instanceof Blob ? ready : null;
   if (!ready) try {
     const r = await fetch('/api/voice', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) });
     if (r.ok) blob = await r.blob(); else err('Голос: ' + (await r.text()).slice(0, 140));
@@ -258,7 +305,7 @@ async function speak(text, ready) {
     return;
   }
   const a = new Audio(URL.createObjectURL(blob));
-  a.quip = !!ready;
+  a.quip = ready instanceof Blob;
   curAudio = a;
   try { if (audioCtx) { if (audioCtx.state === 'suspended') await audioCtx.resume(); audioCtx.createMediaElementSource(a).connect(analyser); } } catch { /* играем напрямую */ }
   a.onloadedmetadata = () => { if (isFinite(a.duration)) lineDur = a.duration; };
@@ -358,12 +405,134 @@ function frame(now) {
     // начал или кончил говорить — следующим ставим ролик под новое состояние
     if (!gestQ.length && !CLIPS.gest.includes(nextClip) && CLIPS.talk.includes(nextClip) !== !!speaking) cue();
     { const L = fx.light, fl = 0.94 + 0.06 * Math.sin(now / 53) * Math.sin(now / 131); $('bgscene').style.filter = $('v-cave').style.filter = `brightness(${((0.34 + 0.78 * L) * fl).toFixed(3)}) sepia(${(0.25 * (1 - L)).toFixed(2)})`; vv[cur].style.filter = `brightness(${((0.6 + 0.45 * L) * (0.97 + 0.03 * Math.sin(now / 53))).toFixed(3)})`; }
-    fx.step(now, dt, { enabled: true, active: curClip, time: v.currentTime, speaking, level, listening: listening.size > 0, thinking, blink: !speaking && now < blinkUntil, mood: speaking ? mood : '' });
+    fx.step(now, dt, { enabled: true, active: curClip, time: v.currentTime, speaking, level, listening: listening.size > 0, thinking, blink: !speaking && now < blinkUntil, mood: speaking ? mood : '', ...(intro ? { dim: iv.dim, eyesOff: !iv.eyes, eyeBoost: iv.boost } : {}) });
   }
+  drawIntro();
   $('stage').classList.toggle('hear', !speaking && listening.size > 0);
   $('stage').classList.toggle('muse', !speaking && !listening.size && thinking);
   NKDice.step(now, dt);
   requestAnimationFrame(frame);
+}
+
+// ---------- интро: темнота → свеча → череп и огонь в глазницах → четыре фразы → «Ты кто такой?» ----------
+// Не видеофайл: те же слои, что и в игре (пещера, ролики лича, свет fx.js), поверх — шторка темноты.
+let intro = null, introDone = false;
+const iv = { holeC: 0, holeS: 0, dim: 0.12, lift: 1, boost: 1, eyes: false };   // что сейчас на сцене
+const ease = (k) => (k < 0 ? 0 : k > 1 ? 1 : k * k * (3 - 2 * k));
+function tween(key, to, ms) {
+  const from = iv[key], t0 = performance.now(), me = intro;
+  return new Promise((done) => {
+    const tick = () => { if (intro !== me || !me) return done(); const k = ease((performance.now() - t0) / ms); iv[key] = from + (to - from) * k; if (k >= 1) done(); else requestAnimationFrame(tick); };
+    tick();
+  });
+}
+function maybeIntro() {
+  if (intro || introDone) return;
+  if (state.started || state.intro === 'done' || (state.players || []).some((p) => p.monster)) { introDone = true; return; }
+  runIntro();
+}
+async function runIntro() {
+  const me = intro = { t0: performance.now() };
+  const alive = () => intro === me;
+  Object.assign(iv, { holeC: 0, holeS: 0, dim: 0.12, lift: 1, boost: 1, eyes: false });
+  $('stage').classList.add('intro');
+  $('said').textContent = ''; $('rest').textContent = '';
+  send({ t: 'intro', on: true });
+  // 1. темно, ждём, пока загрузятся ролики (не дольше 5 с)
+  for (let i = 0; i < 50 && !videoOk && alive(); i++) await sleep(100);
+  await sleep(700); if (!alive()) return;
+  // 2. свеча разгорается
+  tween('dim', 0.55, 2600); await tween('holeC', 0.24, 2600); if (!alive()) return;
+  // 3. лич поднимает череп из темноты, в глазницах вспыхивает огонь
+  tween('lift', 0, 1800); await tween('holeS', 0.2, 1500); if (!alive()) return;
+  iv.eyes = true; iv.boost = 3.2; tween('boost', 1, 1600); await sleep(900); if (!alive()) return;
+  // пещера проявляется целиком
+  tween('dim', 1, 1800); tween('holeS', 1.7, 1800); await tween('holeC', 1.7, 1800); if (!alive()) return;
+  // 4. голос
+  await Promise.race([introVoice, sleep(2500)]);
+  $('stage').classList.add('talking');
+  const L = Q.INTRO;
+  for (let i = 0; i < L.length && alive(); i++) {
+    const blob = voiceDead ? null : await Promise.race([voiceFor(L[i]), sleep(1500).then(() => null)]);
+    if (!alive()) return;
+    if (i === L.length - 1) { send({ t: 'intro', on: false }); gesture('point'); }   // на телефонах открывается первый вопрос
+    const p = sayLine(L[i], blob);
+    if (i === L.length - 2) {             // жест «point» встаёт в очередь заранее, чтобы рука вышла на «Ты кто такой?»
+      (async () => { while (alive() && speaking) { const t = curAudio ? curAudio.currentTime : (performance.now() - lineT0) / 1000; if (lineDur - t < 1.6) { gesture('point'); break; } await sleep(80); } })();
+    }
+    await p; if (alive()) await sleep(i === 1 ? 600 : 380);
+  }
+  if (alive()) finishIntro(true);
+}
+function finishIntro(natural) {
+  if (!intro) return;
+  intro = null; introDone = true;
+  Object.assign(iv, { holeC: 2, holeS: 2, dim: 1, lift: 0, boost: 1, eyes: true });
+  $('stage').classList.remove('intro', 'talking');
+  vv.concat([...$('stage').querySelectorAll('canvas.fx')]).forEach((e) => { e.style.transform = ''; });
+  const ctx = $('introc').getContext('2d'); ctx.clearRect(0, 0, $('introc').width, $('introc').height);
+  send({ t: 'intro', on: false });
+  if (!natural) stopSpeak();
+  const nobody = !(state.players || []).length;
+  lineText = nobody ? 'Ну? Наведи телефон на код слева — и отвечай, кто ты такой.' : 'Ты кто такой? Отвечай с телефона.';
+  if (!speaking) { $('said').textContent = lineText; $('rest').textContent = ''; }
+  pumpSay();
+}
+function skipIntro() { if (intro) finishIntro(false); }
+$('stage').addEventListener('click', () => { if (intro) skipIntro(); });
+addEventListener('keydown', () => { if (intro) skipIntro(); });
+
+// шторка темноты: вырезаем свет у свечи и у черепа
+function drawIntro() {
+  const c = $('introc');
+  if (!intro) return;
+  const r = c.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2), W = Math.round(r.width * dpr), H = Math.round(r.height * dpr);
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  const g = c.getContext('2d');
+  g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, W, H);
+  g.fillStyle = '#050302'; g.fillRect(0, 0, W, H);
+  g.globalCompositeOperation = 'destination-out';
+  const fl = 0.92 + 0.08 * Math.sin(performance.now() / 47) * Math.sin(performance.now() / 113);
+  const hole = (x, y, rad) => { if (rad <= 0.002) return; const R = rad * W * fl, gr = g.createRadialGradient(x * W, y * H, R * 0.15, x * W, y * H, R); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.55, 'rgba(0,0,0,.75)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H); };
+  hole(0.909, 0.622, Math.max(0.012, iv.holeC));          // свеча (координаты как в fx.js)
+  hole(0.5, 0.33, iv.holeS);                              // череп
+  g.globalCompositeOperation = 'source-over';
+  // череп поднимается: ролик лича и его свет вместе съезжают вверх на место
+  const tf = iv.lift > 0.001 ? `translateY(${(iv.lift * 5).toFixed(2)}%)` : '';
+  vv.concat([...$('stage').querySelectorAll('canvas.fx')]).forEach((e) => { if (e.style.transform !== tf) e.style.transform = tf; });
+}
+
+// ---------- анкета: лич отвечает каждому по очереди ----------
+const sayQ = [];
+let sayBusy = false;
+function onQuizSay(m) {
+  if (m.kind === 'q') {
+    const q = Q.Q[(m.step || 1) - 1]; if (!q) return;
+    if (sayQ.length || speaking || intro) return;        // вопрос и так написан на телефоне — не перебиваем ответы
+    sayQ.push({ text: q.q, name: m.name });
+  } else {
+    // игроки отвечают быстрее, чем лич говорит: старый несказанный отклик этому же игроку выбрасываем
+    for (let i = sayQ.length - 1; i >= 0; i--) if (sayQ[i].pid === m.pid && !sayQ[i].seal) sayQ.splice(i, 1);
+    sayQ.push({ text: m.text, name: m.name, pid: m.pid });
+  }
+  pumpSay();
+}
+async function pumpSay() {
+  if (sayBusy || intro) return;
+  sayBusy = true;
+  try {
+    while (sayQ.length && !intro) {
+      for (let i = 0; i < 120 && speaking; i++) await sleep(100);
+      const it = sayQ.shift();
+      $('tab').textContent = it.name ? 'ЛИЧ → ' + String(it.name).toUpperCase() : 'ЛИЧ';
+      if (!it.seal && sayQ.length > 2) continue;           // очередь длинная — пропускаем, текст и так на телефоне
+      if (it.seal) { /* карточка уже показана */ }
+      else if (Math.random() < 0.3) gesture(Math.random() < 0.5 ? 'laugh' : 'think');
+      const blob = await Promise.race([voiceFor(it.text), sleep(2500).then(() => null)]);
+      await sayLine(it.text, blob);
+      await sleep(250);
+    }
+  } finally { sayBusy = false; $('tab').textContent = 'ЛИЧ'; }
 }
 
 // ---------- кубики ----------
