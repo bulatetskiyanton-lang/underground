@@ -284,6 +284,8 @@ aside .mapbox{width:min(100%,26vh);margin-inline:auto}
 #hud #err{position:absolute;left:17.5vw;bottom:.3vh;font-size:12px;max-width:40vw;color:#e07a5f;text-shadow:0 1px 2px #000}
 /* «место»: лич не уезжает и не сжимается (в его ролике нарисован стол) — стоит спереди; картинка места меньше, слева, за его плечом, реплику не закрывает */
 #stage.f-place>video.v,#stage.f-place>canvas.fx{transform:none}
+/* бросок: камера чуть наезжает на доску с кубиком, лич остаётся в кадре */
+#stage.f-dice{--z:1.12;--ox:76%;--oy:78%}
 #stage.f-place>canvas.fx-shade{opacity:1}
 #stage #scenecard.big{left:15%;top:9%;width:44%;transform:rotate(-1.5deg);z-index:7}
 /* интро: весь интерфейс прячется, видна только реплика, когда лич говорит */
@@ -373,9 +375,9 @@ aside .mapbox{width:min(100%,26vh);margin-inline:auto}
 
 <script src="/vendor/three.min.js"></script>
 <script src="/vendor/cannon.min.js"></script>
-<script src="/dice.js"></script>
+<script src="/dice.js?v=2"></script>
 <script src="/quiz.js"></script>
 <script src="/nkmap.js?v=1794694672"></script>
-<script type="module" src="/screen.js?v=1794694672"></script>
+<script type="module" src="/screen.js?v=1794696000"></script>
 </body>
 </html>

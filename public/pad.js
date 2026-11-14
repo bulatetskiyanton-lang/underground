@@ -79,6 +79,7 @@
     if ((t === 'sheet') !== (tab === 'sheet') || t === 'sheet') send({ t: 'look', on: t === 'sheet' });
     tab = t;
     ['sheet', 'gear', 'dice', 'talk'].forEach(function (n) { $('t-' + n).hidden = n !== t; });
+    if (t === 'dice') NKCup.reset();
     Array.prototype.forEach.call($('tabs').querySelectorAll('button'), function (b) { b.setAttribute('aria-selected', String(b.dataset.tab === t)); if (b.dataset.tab === t) b.classList.remove('ping'); });
     window.scrollTo(0, 0);
   }
@@ -279,7 +280,18 @@
     b.addEventListener('click', function () { pickDie(d); });
     $('dice').appendChild(b);
   });
-  function pickDie(d) { selDie = d; Array.prototype.forEach.call($('dice').children, function (b) { b.classList.toggle('on', b.dataset.d === d); }); $('throw-label').textContent = 'Зажми печать — сила, отпусти — бросок ' + d; }
+  // стаканчик: тряска гремит, смахнул вверх — бросок на экран
+  var cupLock = 0;
+  NKCup.mount($('cup'), function (p) {
+    if (Date.now() < cupLock) return;
+    cupLock = Date.now() + 2500;
+    send({ t: 'roll', die: selDie, power: p });
+    $('ask').className = 'btn'; lastAsk = null;
+  });
+  NKCup.die(selDie);
+  $('cupask').hidden = !(window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === 'function');
+  $('cupask').addEventListener('click', function () { NKCup.ask(); $('cupask').hidden = true; });
+  function pickDie(d) { NKCup.die(d); selDie = d; Array.prototype.forEach.call($('dice').children, function (b) { b.classList.toggle('on', b.dataset.d === d); }); $('throw-label').textContent = 'или зажми печать — бросок ' + d; }
   var charge = 0, charging = false, chargeT0 = 0, lockUntil = 0;
   function chargeLoop() {
     if (!charging) return;

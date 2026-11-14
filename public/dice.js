@@ -5,6 +5,8 @@
 var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 var charging=false,chargeT0=0,power=0,selIdx=5,dice3d=null,onDieResult=function(){},onPower=function(){};
 var PHI=(1+Math.sqrt(5))/2;
+// где доска и насколько кубик меньше: на столе он в 3 раза меньше, чем был
+var TRAY={x:3.75,z:0.15,half:1.1}, SCALE=0.38;
 function v3sub(a,b){return [a[0]-b[0],a[1]-b[1],a[2]-b[2]]}
 function v3dot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]}
 function v3cross(a,b){return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]}
@@ -65,11 +67,17 @@ function initDice(glc){
     var b=new CANNON.Body({mass:0,material:mFloor}); b.addShape(new CANNON.Plane());
     b.quaternion.setFromAxisAngle(new CANNON.Vec3(axis[0],axis[1],axis[2]),ang); b.position.set(px_,py,pz); world.addBody(b);
   }
+  // доска для кубиков лежит на столе справа; стенки физики — по её внутренним бортам
+  var TX=TRAY.x, TZ=TRAY.z, TH=TRAY.half;
   plane(0,0,0,[1,0,0],-Math.PI/2);          // стол
-  plane(-4.4,0,0,[0,1,0],Math.PI/2);        // левая стенка
-  plane(5.4,0,0,[0,1,0],-Math.PI/2);        // правая
-  plane(0,0,-1.3,[0,1,0],0);                // дальняя
-  plane(0,0,2.0,[0,1,0],Math.PI);           // ближняя
+  // борта — низкие коробки, а не бесконечные стены: кубик прилетает сверху из-за камеры и падает внутрь
+  function wall(x,z,hx,hz){ var b=new CANNON.Body({mass:0,material:mFloor}); b.addShape(new CANNON.Box(new CANNON.Vec3(hx,0.45,hz))); b.position.set(x,0.45,z); world.addBody(b); }
+  wall(TX-TH-0.15,TZ,0.15,TH+0.3); wall(TX+TH+0.15,TZ,0.15,TH+0.3); wall(TX,TZ-TH-0.15,TH+0.3,0.15); wall(TX,TZ+TH+0.15,TH+0.3,0.15);
+  new THREE.TextureLoader().load('/img/ui/dicetray.webp',function(t){
+    t.anisotropy=8;
+    var tray=new THREE.Mesh(new THREE.PlaneGeometry(TH*2.62,TH*2.62),new THREE.MeshStandardMaterial({map:t,transparent:true,roughness:0.9}));
+    tray.rotation.x=-Math.PI/2; tray.position.set(TX,0.01,TZ); tray.receiveShadow=true; scene.add(tray);
+  });
 
   var texCache={};
   function tex(t){
@@ -92,7 +100,7 @@ function initDice(glc){
   function build(def){
     if(built[def.id]) return built[def.id];
     var raw=SH[def.id], R0=0; raw.forEach(function(v){R0=Math.max(R0,v3len(v))});
-    var V=raw.map(function(v){return [v[0]/R0*def.r,v[1]/R0*def.r,v[2]/R0*def.r]});
+    var RR=def.r*SCALE; var V=raw.map(function(v){return [v[0]/R0*RR,v[1]/R0*RR,v[2]/R0*RR]});
     var F=hullFaces(V), k=1;
     F.forEach(function(f){ if(f.num) return; f.num=k; var op=null; F.forEach(function(g2){ if(v3dot(g2.n,f.n)<-0.999) op=g2; }); if(op) op.num=def.sides+1-k; k++; });
     var pos=[];
@@ -118,12 +126,12 @@ function initDice(glc){
     return built[def.id];
   }
 
-  var cur3=null, body=null, api={rolling:false}, rollT0=0, restPos=new THREE.Vector3(3.4,0,0.5);
+  var cur3=null, body=null, api={rolling:false}, rollT0=0, restPos=new THREE.Vector3(TRAY.x,0,TRAY.z);
   api.show=function(def){
     if(cur3) scene.remove(cur3.group);
     if(body){ world.remove(body); body=null; }
     cur3=build(def); scene.add(cur3.group);
-    cur3.group.position.set(restPos.x,def.r+0.25,restPos.z);
+    cur3.group.position.set(restPos.x,def.r*SCALE+0.12,restPos.z);
     cur3.group.rotation.set(0.5,0.6,0.2);
     api.rolling=false; api.idle=true;
   };
@@ -131,11 +139,14 @@ function initDice(glc){
     if(!cur3) return;
     if(body){ world.remove(body); }
     body=new CANNON.Body({mass:1,material:mDie}); body.addShape(cur3.shape);
-    body.position.set(4.0,2.8+p*1.2,-0.2+Math.random()*1.2);
+    // вылетает у самой камеры — на экране крупный — и по дуге падает в доску
+    var st=new CANNON.Vec3(0.6+Math.random()*1.4,7.6,8.4), T=0.62-0.12*p;
+    var tx=TRAY.x+(Math.random()-0.5)*TRAY.half*0.8, tz=TRAY.z+(Math.random()-0.5)*TRAY.half*0.6, ty=0.5;
+    body.position.copy(st);
     var q=new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.random()*6,Math.random()*6,Math.random()*6));
     body.quaternion.set(q.x,q.y,q.z,q.w);
-    body.velocity.set(-(6+15*p),2.5+3.5*p,(Math.random()-0.5)*5);
-    var sp=9+18*p; body.angularVelocity.set((Math.random()-0.5)*2*sp,(Math.random()-0.5)*2*sp,(Math.random()-0.5)*2*sp);
+    body.velocity.set((tx-st.x)/T,(ty-st.y+0.5*34*T*T)/T,(tz-st.z)/T);
+    var sp=12+16*p; body.angularVelocity.set((Math.random()-0.5)*2*sp,(Math.random()-0.5)*2*sp,(Math.random()-0.5)*2*sp);
     body.allowSleep=true; body.sleepSpeedLimit=0.3; body.sleepTimeLimit=0.35;
     body.linearDamping=0.08; body.angularDamping=0.12;
     world.addBody(body);
@@ -157,7 +168,7 @@ function initDice(glc){
     if(!cur3) return;
     if(charging){
       var sh=0.04+power*0.16;
-      cur3.group.position.set(4.6+(Math.random()-0.5)*sh,2.8+power*1.2+(Math.random()-0.5)*sh,1.1+(Math.random()-0.5)*sh);
+      cur3.group.position.set(TRAY.x+(Math.random()-0.5)*sh,1.2+power*0.8+(Math.random()-0.5)*sh,TRAY.z+(Math.random()-0.5)*sh);
       cur3.group.rotation.x+=dt*(2+power*14); cur3.group.rotation.y+=dt*(3+power*10);
     }else if(api.rolling&&body){
       world.step(1/60,dt,4);
