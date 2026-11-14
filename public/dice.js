@@ -50,7 +50,7 @@ function initDice(glc){
   var cam=new THREE.PerspectiveCamera(40,1440/1075,0.1,100);
   cam.position.set(0,11,12); cam.lookAt(0,3.8,0);
   scene.add(new THREE.HemisphereLight(0xcfc6ff,0x2a1a12,0.75));
-  var sun=new THREE.DirectionalLight(0xffd9a0,1.15); sun.position.set(7,13,5); sun.castShadow=true;
+  var sun=new THREE.DirectionalLight(0xffd9a0,0.75); sun.position.set(7,13,5); sun.castShadow=true;
   sun.shadow.mapSize.set(1024,1024);
   sun.shadow.camera.left=-10; sun.shadow.camera.right=10; sun.shadow.camera.top=8; sun.shadow.camera.bottom=-8; sun.shadow.camera.far=40;
   scene.add(sun);
@@ -66,10 +66,10 @@ function initDice(glc){
     b.quaternion.setFromAxisAngle(new CANNON.Vec3(axis[0],axis[1],axis[2]),ang); b.position.set(px_,py,pz); world.addBody(b);
   }
   plane(0,0,0,[1,0,0],-Math.PI/2);          // стол
-  plane(-6.2,0,0,[0,1,0],Math.PI/2);        // левая стенка
-  plane(6.2,0,0,[0,1,0],-Math.PI/2);        // правая
+  plane(-4.4,0,0,[0,1,0],Math.PI/2);        // левая стенка
+  plane(5.4,0,0,[0,1,0],-Math.PI/2);        // правая
   plane(0,0,-1.3,[0,1,0],0);                // дальняя
-  plane(0,0,3.3,[0,1,0],Math.PI);           // ближняя
+  plane(0,0,2.0,[0,1,0],Math.PI);           // ближняя
 
   var texCache={};
   function tex(t){
@@ -99,7 +99,7 @@ function initDice(glc){
     F.forEach(function(f){ for(var i=1;i<f.idx.length-1;i++){ [f.idx[0],f.idx[i],f.idx[i+1]].forEach(function(q){pos.push(V[q][0],V[q][1],V[q][2])}); } });
     var geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); geo.computeVertexNormals();
     var group=new THREE.Group();
-    var mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:def.color,flatShading:true,roughness:0.32,metalness:0.18,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));
+    var mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:def.color,flatShading:true,roughness:0.6,metalness:0.05,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));
     mesh.castShadow=true; group.add(mesh);
     var edges=new THREE.LineSegments(new THREE.EdgesGeometry(geo,1),new THREE.LineBasicMaterial({color:0xfff2d0,transparent:true,opacity:0.22}));
     group.add(edges);
@@ -118,7 +118,7 @@ function initDice(glc){
     return built[def.id];
   }
 
-  var cur3=null, body=null, api={rolling:false}, rollT0=0, restPos=new THREE.Vector3(3.6,0,1.1);
+  var cur3=null, body=null, api={rolling:false}, rollT0=0, restPos=new THREE.Vector3(3.4,0,0.5);
   api.show=function(def){
     if(cur3) scene.remove(cur3.group);
     if(body){ world.remove(body); body=null; }
@@ -131,7 +131,7 @@ function initDice(glc){
     if(!cur3) return;
     if(body){ world.remove(body); }
     body=new CANNON.Body({mass:1,material:mDie}); body.addShape(cur3.shape);
-    body.position.set(4.6,2.8+p*1.2,0.4+Math.random()*1.4);
+    body.position.set(4.0,2.8+p*1.2,-0.2+Math.random()*1.2);
     var q=new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.random()*6,Math.random()*6,Math.random()*6));
     body.quaternion.set(q.x,q.y,q.z,q.w);
     body.velocity.set(-(6+15*p),2.5+3.5*p,(Math.random()-0.5)*5);
