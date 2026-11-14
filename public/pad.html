@@ -131,6 +131,29 @@ form{display:grid;grid-template-columns:1fr auto;gap:8px}
 #tabs button[aria-selected="true"] .medal{transform:translateY(-6px) scale(1.08);box-shadow:inset 0 0 0 4px var(--paper-2),inset 0 0 0 5.5px var(--ink-dark),0 0 0 3px var(--candle),0 0 16px 3px rgba(240,150,43,.6)}
 #tabs button.ping::after{content:"";position:absolute;top:-2px;right:calc(50% - 30px);width:13px;height:13px;border-radius:50%;background:var(--candle);border:2px solid var(--ink-dark);animation:pulse 1s ease-in-out infinite}
 body.play{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
+
+/* ===== удобство на телефоне: всё главное на одном экране, ничего не наезжает ===== */
+html,body{overflow-x:clip;height:auto;min-height:100%}
+body.play{padding-bottom:calc(118px + env(safe-area-inset-bottom));padding-top:calc(12px + env(safe-area-inset-top))}
+.view,.tab{gap:12px}
+.tab>.ribbon{width:70%;margin:0 auto}
+.portrait{width:44%;font-size:64px}
+.dice6{grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;padding:12px 10px}
+.d{border-width:2px;box-shadow:inset 0 0 0 2px #6a5c47,inset 0 4px 8px rgba(0,0,0,.8),0 0 0 2px var(--paper-2),0 0 0 3px var(--ink-dark)}
+.d.on{box-shadow:inset 0 0 0 2px var(--candle),inset 0 4px 8px rgba(0,0,0,.8),0 0 0 3px var(--candle),0 0 14px 4px rgba(240,150,43,.6);transform:scale(1.12)}
+.d .die{left:9%;top:9%;width:82%;height:82%}
+.sealbtn{width:min(46vw,190px)}
+#t-dice .sealbtn{width:min(52vw,210px)}
+.slots{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:10px}
+.detail{grid-template-columns:72px 1fr;gap:12px;padding:12px 14px;min-height:0}
+.detail .pic{width:72px;height:72px}
+.detail h3{font-size:20px} .detail p{font-size:14px}
+.votes{display:flex;justify-content:flex-end;gap:8px;margin-top:-4px}
+.btn.vote{min-height:44px;min-width:92px;font-size:14px;padding:4px 12px;box-shadow:3px 3px 0 0 var(--hatch)}
+#heard:empty{display:none}
+#paths .btn{min-height:48px;font-size:15px;padding:8px 12px}
+#lich .paper{font-size:16px;line-height:1.28;padding:12px 14px}
+#form input{min-width:0}
 </style>
 </head>
 <body>
@@ -192,12 +215,12 @@ body.play{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
     <div class="tab" id="t-talk" hidden>
       <div id="lich"><div class="face"></div><div class="paper"><span id="lich-text">Лич пока молчит.</span></div></div>
       <div class="votes"><button type="button" class="btn vote" id="v-up" aria-pressed="false" disabled>Браво</button><button type="button" class="btn vote" id="v-down" aria-pressed="false" disabled>Мимо</button></div>
+      <div id="heard"></div>
       <button class="sealbtn" id="talk" type="button" aria-label="Зажми и говори"></button>
       <div class="seal-label">Зажми печать и говори. Отпустил — лич услышал.</div>
+      <div id="paths" class="row"></div>
       <div id="goal" class="paper" hidden></div>
       <div id="quests" class="paper" hidden></div>
-      <div id="paths" class="row"></div>
-      <div id="heard"></div>
       <form id="form"><input id="txt" type="text" autocomplete="off" placeholder="или напиши текстом" aria-label="Сообщение личу"><button class="btn" type="submit">Сказать</button></form>
     </div>
   </section>
