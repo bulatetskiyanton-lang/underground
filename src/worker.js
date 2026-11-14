@@ -10,6 +10,7 @@ const randomCode = (len = 5) => {
 };
 const clean = (t, max = 600) => String(t ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 const DICE = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'];
+const ITEM_KINDS = ['potion', 'key', 'scroll', 'dagger', 'coins', 'bone', 'lantern', 'shovel', 'mushroom', 'book', 'chest', 'rope', 'bomb', 'cheese', 'skull', 'map'];
 
 const STYLE = 'Style: black ink engraving and woodcut illustration with dense cross-hatching on aged cream paper, heavy black outlines, monochrome black and bone white, one small glowing teal accent. Plate from an old bestiary book. No text, no letters, no frame.';
 
@@ -70,12 +71,21 @@ const MONSTER_TOOL = {
           required: ['name', 'desc', 'die'],
         },
       },
+      items: {
+        type: 'array',
+        description: 'Ровно 6 предметов амуниции на выбор, под характер и легенду монстра, смешные и полезные',
+        items: {
+          type: 'object',
+          properties: { name: { type: 'string', description: 'Название, 1-3 слова' }, desc: { type: 'string', description: 'Что даёт, до 60 знаков' }, kind: { type: 'string', enum: ITEM_KINDS, description: 'На что похож: зелье, ключ, свиток, кинжал, монеты, кость, фонарь, лопата, гриб, книга, сундук, верёвка, бомба, сыр, череп, карта. Все 6 разные' } },
+          required: ['name', 'desc', 'kind'],
+        },
+      },
       hp: { type: 'integer', description: 'Здоровье, от 6 до 20' },
       weakness: { type: 'string', description: 'Слабость, до 60 знаков, смешная' },
       phrase: { type: 'string', description: 'Коронная фраза монстра, до 60 знаков' },
       look_en: { type: 'string', description: 'English: what the monster looks like for a portrait, one sentence, bust portrait, no names' },
     },
-    required: ['name', 'title', 'traits', 'skills', 'hp', 'weakness', 'phrase', 'look_en'],
+    required: ['name', 'title', 'traits', 'skills', 'items', 'hp', 'weakness', 'phrase', 'look_en'],
   },
 };
 
@@ -194,7 +204,7 @@ export class Room {
   view() {
     return {
       t: 'state', started: this.started, scene: this.scene, lich: this.lastLich,
-      players: [...this.players.values()].map((p) => ({ pid: p.pid, name: p.name, race: p.race, monster: p.monster, making: !!p.making, online: !!p.online, pv: p.pv || 0 })),
+      players: [...this.players.values()].map((p) => ({ pid: p.pid, name: p.name, race: p.race, monster: p.monster, gear: p.gear || [], making: !!p.making, online: !!p.online, pv: p.pv || 0 })),
       log: this.log.slice(-8),
     };
   }
@@ -227,6 +237,18 @@ export class Room {
     if (m.t === 'name') { p.name = clean(m.name, 20); this.state(); }
     else if (m.t === 'make') this.make(p, m);
     else if (m.t === 'talking') this.cast({ t: 'talking', pid: p.pid, on: !!m.on }, 'screen');
+    else if (m.t === 'gear') {
+      const n = p.monster?.items?.length || 0;
+      p.gear = [...new Set((Array.isArray(m.idx) ? m.idx : []).map(Number).filter((i) => Number.isInteger(i) && i >= 0 && i < n))].slice(0, 3);
+      this.state();
+    } else if (m.t === 'use') {
+      const it = p.monster?.items?.[Number(m.i)];
+      if (!it || !(p.gear || []).includes(Number(m.i))) return;
+      const text = `Использую предмет «${it.name}» (${it.desc}).`;
+      this.log.push({ who: this.label(p), text });
+      this.cast({ t: 'said', pid: p.pid, name: this.label(p), text });
+      this.turn({ kind: 'say', who: this.label(p), text });
+    }
     else if (m.t === 'say') {
       const text = clean(m.text, 500);
       if (!text) return;
@@ -262,7 +284,7 @@ export class Room {
     p.legend = clean(m.legend, 700);
     p.making = true; this.state();
     const r = await claude(this.env, {
-      system: MONSTER_PROMPT, tool: MONSTER_TOOL, maxTokens: 700,
+      system: MONSTER_PROMPT, tool: MONSTER_TOOL, maxTokens: 1100,
       user: `Имя игрока: ${p.name || 'без имени'}\nРаса: ${p.race}\nЛегенда игрока: ${p.legend || 'нет, придумай сам'}`,
     });
     p.making = false;
@@ -277,8 +299,10 @@ export class Room {
       name: clean(o.name, 24), title: clean(o.title, 40), race: p.race,
       traits: (o.traits || []).slice(0, 3).map((t) => clean(t, 30)),
       skills: (o.skills || []).slice(0, 3).map((s) => ({ name: clean(s.name, 30), desc: clean(s.desc, 90), die: DICE.includes(s.die) ? s.die : 'd20' })),
+      items: (o.items || []).slice(0, 6).map((it) => ({ name: clean(it.name, 30), desc: clean(it.desc, 80), kind: ITEM_KINDS.includes(it.kind) ? it.kind : 'chest' })),
       hp: Math.max(6, Math.min(20, Number(o.hp) || 10)), weakness: clean(o.weakness, 80), phrase: clean(o.phrase, 80),
     };
+    p.gear = [];
     this.state();
     if (this.started) this.turn({ kind: 'join', who: this.label(p) });
     // портрет рисуется в фоне, игру не задерживает
@@ -300,7 +324,7 @@ export class Room {
     this.cast({ t: 'think', on: true });
     const monsters = [...this.players.values()].filter((p) => p.monster).map((p) => ({
       игрок: p.name, имя: p.monster.name, раса: p.monster.race, прозвище: p.monster.title, черты: p.monster.traits,
-      умения: p.monster.skills.map((s) => `${s.name} (${s.die}): ${s.desc}`), здоровье: p.monster.hp, слабость: p.monster.weakness, легенда: p.legend,
+      умения: p.monster.skills.map((s) => `${s.name} (${s.die}): ${s.desc}`), амуниция: (p.gear || []).map((i) => p.monster.items?.[i]).filter(Boolean).map((it) => `${it.name}: ${it.desc}`), здоровье: p.monster.hp, слабость: p.monster.weakness, легенда: p.legend,
     }));
     const what = ev.kind === 'start' ? 'Игра началась. Встреть монстров в своём логове: коротко представься, подколи каждого по его легенде и предложи первое дело в подземелье.'
       : ev.kind === 'join' ? `К игре присоединился новый монстр: ${ev.who}. Коротко поприветствуй его и встрой в происходящее.`

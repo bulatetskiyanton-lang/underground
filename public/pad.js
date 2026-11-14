@@ -47,12 +47,28 @@
   }
 
   // ---------- экраны ----------
+  var tab = 'sheet', selItem = -1, selDie = 'd20';
   function render() {
     if (!me) return;
     if (me.making) return show('wait');
-    if (me.monster && !wantRemake) { drawSheet(); if (state.lich) showLich(state.lich.text, state.lich.roll); return show('play'); }
+    if (me.monster && !wantRemake) {
+      drawSheet(); drawGear(); if (state.lich) showLich(state.lich.text, state.lich.roll);
+      $('title').textContent = me.monster.name;
+      return show('play');
+    }
     if ($('v-legend').hidden && $('v-race').hidden) show('race');
   }
+  var show0 = show;
+  show = function (v) { show0(v); var play = v === 'play'; $('tabs').hidden = !play; document.body.classList.toggle('play', play); if (!play) $('title').textContent = 'Нижний Край'; };
+
+  function setTab(t) {
+    tab = t;
+    ['sheet', 'gear', 'dice', 'talk'].forEach(function (n) { $('t-' + n).hidden = n !== t; });
+    Array.prototype.forEach.call($('tabs').children, function (b) { b.setAttribute('aria-selected', String(b.dataset.tab === t)); if (b.dataset.tab === t) b.classList.remove('ping'); });
+    window.scrollTo(0, 0);
+  }
+  Array.prototype.forEach.call($('tabs').children, function (b) { b.addEventListener('click', function () { setTab(b.dataset.tab); }); });
+  function ping(t) { if (tab === t) return; var b = $('tabs').querySelector('[data-tab="' + t + '"]'); if (b) b.classList.add('ping'); }
 
   RACES.forEach(function (r) {
     var b = document.createElement('button'); b.type = 'button'; b.className = 'btn race';
@@ -73,41 +89,74 @@
   $('back-race').addEventListener('click', function () { show('race'); });
   $('make').addEventListener('click', function () {
     if (!race) return show('race');
-    wantRemake = false; err('');
+    wantRemake = false; err(''); selItem = -1;
     send({ t: 'make', race: race.id, legend: $('legend').value.trim() });
     show('wait');
   });
   $('remake').addEventListener('click', function () { wantRemake = true; show('race'); });
 
+  // ---------- лист персонажа ----------
   function drawSheet() {
     var m = me.monster;
     var img = me.pv ? ' style="background-image:url(\'/api/portrait?room=' + room + '&pid=' + encodeURIComponent(pid) + '&v=' + me.pv + '\')"' : '';
     $('sheet').innerHTML =
-      '<div class="top"><div class="ph"' + img + '>' + (me.pv ? '' : esc(m.name.charAt(0))) + '</div><div><h2>' + esc(m.name) + '</h2><div class="t">' + esc(m.title) + ' · ' + esc(m.race) + '</div><div class="hp">здоровье ' + m.hp + '</div><div class="t">' + esc((m.traits || []).join(' · ')) + '</div></div></div>' +
-      (m.skills || []).map(function (s, i) { return '<div class="sk"><div><b>' + esc(s.name) + '</b><br>' + esc(s.desc) + '</div><button type="button" data-sk="' + i + '">' + esc(s.die) + '</button></div>'; }).join('') +
-      '<div class="weak"><b>Слабость:</b> ' + esc(m.weakness) + '<br><span class="hand">«' + esc(m.phrase) + '»</span></div>';
+      '<div class="arch"' + img + '>' + (me.pv ? '' : esc(m.name.charAt(0))) + '</div>' +
+      '<div class="banner"><h2>' + esc(m.name) + '</h2><div class="t">' + esc(m.title) + ' · ' + esc(m.race) + '</div></div>' +
+      '<div class="stats"><div class="stat"><img src="/img/ui/heart.webp" alt=""><b>' + m.hp + '</b>здоровье</div>' +
+      (m.traits || []).slice(0, 2).map(function (t, i) { return '<div class="stat"><img src="/img/ui/' + (i ? 'eye' : 'fist') + '.webp" alt=""><b style="font-size:16px;line-height:1.1">' + esc(t) + '</b></div>'; }).join('') + '</div>' +
+      (m.skills || []).map(function (s, i) { return '<div class="sk"><div><b>' + esc(s.name) + '</b><br>' + esc(s.desc) + '</div><button type="button" class="die-btn" data-sk="' + i + '">' + esc(s.die) + '</button></div>'; }).join('') +
+      '<div class="weak"><img src="/img/ui/curse.webp" alt=""><div><b>Слабость:</b> ' + esc(m.weakness) + '<br><span class="hand">«' + esc(m.phrase) + '»</span></div></div>';
   }
   $('sheet').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-sk]'); if (!b || !me || !me.monster) return;
     var s = me.monster.skills[Number(b.dataset.sk)];
     send({ t: 'say', text: 'Использую умение «' + s.name + '».' });
     send({ t: 'roll', die: s.die });
+    setTab('talk');
   });
 
+  // ---------- амуниция ----------
+  function drawGear() {
+    var items = (me.monster && me.monster.items) || [], gear = me.gear || [];
+    $('gear-hint').textContent = !items.length ? 'У этого монстра нет вещей. Слепи нового — лич соберёт ему шесть на выбор.' : gear.length < 3 ? 'Возьми с собой три вещи. Взято: ' + gear.length + ' из 3.' : 'Три вещи с тобой. Нажми на вещь и «Использовать».';
+    $('slots').innerHTML = items.map(function (it, i) { return '<button type="button" class="slot' + (gear.indexOf(i) >= 0 ? ' on' : '') + (i === selItem ? ' sel' : '') + '" data-i="' + i + '" aria-label="' + esc(it.name) + '"><img src="/img/items/' + esc(it.kind) + '.webp" alt=""></button>'; }).join('');
+    var it = items[selItem];
+    $('detail').innerHTML = it ? '<img src="/img/items/' + esc(it.kind) + '.webp" alt=""><div><h3>' + esc(it.name) + '</h3><p>' + esc(it.desc) + '</p></div>' : '<div class="muted" style="grid-column:1/-1;color:#5c4f3d">Нажми на вещь, чтобы рассмотреть.</div>';
+    var has = gear.indexOf(selItem) >= 0;
+    $('take').disabled = !it || (!has && gear.length >= 3);
+    $('take').textContent = has ? 'Выложить' : 'Взять';
+    $('use').disabled = !it || !has;
+    if (items.length && gear.length < 3) ping('gear');
+  }
+  $('slots').addEventListener('click', function (e) { var b = e.target.closest('.slot'); if (!b) return; selItem = Number(b.dataset.i); drawGear(); });
+  $('take').addEventListener('click', function () {
+    var gear = (me.gear || []).slice(), k = gear.indexOf(selItem);
+    if (k >= 0) gear.splice(k, 1); else if (gear.length < 3) gear.push(selItem);
+    me.gear = gear; drawGear(); send({ t: 'gear', idx: gear });
+  });
+  $('use').addEventListener('click', function () { if (selItem < 0) return; send({ t: 'use', i: selItem }); $('heard').textContent = 'Ты достал: ' + me.monster.items[selItem].name; setTab('talk'); });
+
+  // ---------- кубики ----------
+  var SHAPES = { d4: 'M17 4 31 29H3z', d6: 'M5 5h24v24H5z', d8: 'M17 2 31 17 17 32 3 17z', d10: 'M17 2 31 14 17 32 3 14z', d12: 'M17 2 31 12 26 30H8L3 12z', d20: 'M17 2 30 9.5v15L17 32 4 24.5v-15z' };
+  DICE.forEach(function (d) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'd' + (d === selDie ? ' on' : ''); b.dataset.d = d;
+    b.innerHTML = '<svg viewBox="0 0 34 34"><path d="' + SHAPES[d] + '"/></svg><span>' + d.slice(1) + '</span>';
+    b.addEventListener('click', function () { pickDie(d); });
+    $('dice').appendChild(b);
+  });
+  function pickDie(d) { selDie = d; Array.prototype.forEach.call($('dice').children, function (b) { b.classList.toggle('on', b.dataset.d === d); }); $('throw').textContent = 'Бросить ' + d; }
+  $('throw').addEventListener('click', function () { send({ t: 'roll', die: selDie }); $('ask').className = 'btn'; lastAsk = null; $('throw').disabled = true; setTimeout(function () { $('throw').disabled = false; }, 2500); });
+
+  // ---------- разговор ----------
   function showLich(text, roll) {
-    $('lich').innerHTML = '<span class="who">ЛИЧ</span>' + esc(text);
+    if ($('lich-text').textContent !== text) { $('lich-text').textContent = text; ping('talk'); }
     var mine = roll && (!roll.pid || roll.pid === pid);
     lastAsk = mine ? roll : null;
     $('ask').className = 'btn' + (mine ? ' on' : '');
     $('ask').textContent = mine ? 'Лич просит: брось ' + roll.die + ' — ' + roll.why : '';
+    if (mine) { pickDie(roll.die); ping('dice'); }
   }
   $('ask').addEventListener('click', function () { if (lastAsk) { send({ t: 'roll', die: lastAsk.die }); $('ask').className = 'btn'; lastAsk = null; } });
-
-  DICE.forEach(function (d) {
-    var b = document.createElement('button'); b.type = 'button'; b.textContent = d;
-    b.addEventListener('click', function () { send({ t: 'roll', die: d }); });
-    $('dice').appendChild(b);
-  });
   $('form').addEventListener('submit', function (e) {
     e.preventDefault(); var v = $('txt').value.trim(); if (!v) return;
     $('txt').value = ''; $('heard').textContent = 'Ты: ' + v; send({ t: 'say', text: v });

@@ -9,46 +9,80 @@
 <link rel="stylesheet" href="/style.css">
 <style>
 body{padding:16px max(16px,env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+body.play{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
 .w{max-width:520px;margin:0 auto;display:grid;gap:16px}
-h1{font-size:34px;color:var(--paper)}
+h1{font-size:30px;color:var(--paper)}
 h2{font-size:26px;color:var(--paper)}
-.view{display:grid;gap:14px}
-.view[hidden]{display:none}
+.view,.tab{display:grid;gap:14px}
 .row{display:grid;gap:8px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .race{padding:14px 10px;font-size:17px}
-.race small,.leg small{display:block;font-family:var(--text);text-transform:none;letter-spacing:0;font-weight:400;font-size:14px;color:#5c4f3d;margin-top:3px;line-height:1.2}
+.race small{display:block;font-family:var(--text);text-transform:none;letter-spacing:0;font-weight:400;font-size:14px;color:#5c4f3d;margin-top:3px;line-height:1.2}
 .leg{text-align:left;font-family:var(--text);text-transform:none;letter-spacing:0;font-weight:400;font-size:17px;line-height:1.25}
 .muted{color:var(--ink-soft);font-size:15px}
 #err{color:var(--blood);font-size:15px;min-height:18px}
 
-.sheet .in{display:grid;gap:8px}
-.sheet .top{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:center}
-.sheet .ph{width:96px;height:96px;background:#d9cba9 center/cover;border:2px solid var(--ink-dark);display:grid;place-items:center;font-family:var(--display);font-size:44px;color:#8a7b62}
-.sheet h2{color:var(--ink-dark);font-size:28px;line-height:1}
-.sheet .t{font-size:15px;color:#5c4f3d}
-.sheet .hp{font-family:var(--label);font-weight:700;letter-spacing:.06em;color:#a8281c;font-size:14px}
-.sk{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;border-top:1px solid #8a7b62;padding-top:6px;font-size:15px;line-height:1.2}
-.sk b{font-family:var(--display);font-weight:400;font-size:18px}
-.sk button{font-family:var(--display);font-size:16px;background:var(--ink-dark);color:var(--paper);border:0;padding:8px 10px;cursor:pointer}
-.sheet .weak{font-size:15px;color:#5c4f3d;border-top:1px solid #8a7b62;padding-top:6px}
+/* лист персонажа */
+.sheet .in{display:grid;gap:10px;background:var(--paper-2)}
+.arch{position:relative;margin:0 auto;width:68%;aspect-ratio:1/1.08;border:4px solid var(--ink-dark);border-radius:50% 50% 4px 4px/42% 42% 4px 4px;overflow:hidden;background:#d9cba9 center/cover;display:grid;place-items:center;font-family:var(--display);font-size:90px;color:#8a7b62;box-shadow:inset 0 0 0 3px var(--paper-2),inset 0 0 0 4px var(--ink-dark)}
+.banner{margin:-18px auto 0;position:relative;background:var(--ink-dark);color:var(--paper);padding:6px 22px 8px;text-align:center;width:max-content;max-width:92%;clip-path:polygon(0 0,100% 0,96% 50%,100% 100%,0 100%,4% 50%)}
+.banner h2{color:var(--paper);font-size:28px;line-height:1.05}
+.banner .t{font-size:14px;color:#cdbf9f}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{display:grid;justify-items:center;gap:0;border:2px solid var(--ink-dark);padding:4px 2px 6px;font-size:13px;line-height:1.15;text-align:center;color:#5c4f3d}
+.stat img{width:46px;height:46px;mix-blend-mode:multiply}
+.stat b{font-family:var(--display);font-weight:400;font-size:22px;color:var(--ink-dark)}
+.sk{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border-top:1px solid #8a7b62;padding-top:8px;font-size:15px;line-height:1.2}
+.sk b{font-family:var(--display);font-weight:400;font-size:19px}
+.die-btn{font-family:var(--display);font-size:17px;background:var(--ink-dark);color:var(--paper);border:0;padding:10px 12px;cursor:pointer;clip-path:polygon(50% 0,100% 28%,100% 72%,50% 100%,0 72%,0 28%);min-width:58px;min-height:58px}
+.weak{font-size:15px;color:#5c4f3d;border-top:1px solid #8a7b62;padding-top:8px;display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center}
+.weak img{width:44px;height:44px;mix-blend-mode:multiply}
 
-#lich{font-size:18px;line-height:1.3}
-#lich .who{font-family:var(--label);font-weight:700;letter-spacing:.08em;font-size:13px;color:var(--candle);display:block;margin-bottom:4px}
+/* амуниция */
+.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.slot{position:relative;aspect-ratio:1;background:var(--paper-2);border:3px solid var(--ink-dark);padding:0;cursor:pointer;box-shadow:4px 4px 0 0 var(--hatch)}
+.slot img{width:100%;height:100%;display:block;mix-blend-mode:multiply}
+.slot.on{border-color:var(--soul);box-shadow:0 0 0 3px var(--soul),4px 4px 0 0 var(--hatch)}
+.slot.on::after{content:"";position:absolute;right:5px;top:5px;width:10px;height:15px;background:var(--soul);border-radius:50% 50% 50% 50%/70% 70% 30% 30%;animation:flame .14s steps(2) infinite alternate;transform-origin:50% 100%}
+.slot.sel{outline:3px solid var(--candle);outline-offset:2px}
+.detail .in{display:grid;grid-template-columns:84px 1fr;gap:12px;align-items:center;min-height:100px}
+.detail img{width:84px;height:84px;mix-blend-mode:multiply}
+.detail h3{font-size:22px;line-height:1.05}
+.detail p{margin:4px 0 0;font-size:15px;line-height:1.25;color:#5c4f3d}
+
+/* кубики */
+.dice6{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.d{aspect-ratio:1;background:var(--plate);border:3px solid var(--hatch);border-radius:50%;display:grid;place-items:center;cursor:pointer;padding:0;color:var(--ink)}
+.d svg{width:62%;height:62%;fill:#1b1613;stroke:var(--paper);stroke-width:2.2;stroke-linejoin:round}
+.d span{position:absolute;font-family:var(--display);font-size:19px;color:var(--paper);pointer-events:none}
+.d{position:relative}
+.d.on{border-color:var(--candle);box-shadow:0 0 0 4px var(--candle);animation:pulse 1.8s ease-in-out infinite}
+.d.on svg{fill:var(--candle);stroke:var(--ink-dark)} .d.on span{color:var(--ink-dark)}
+#throw{font-size:19px;padding:22px 16px}
 #ask{display:none;border-color:var(--candle);box-shadow:5px 5px 0 0 var(--candle);animation:pulse 1.6s ease-in-out infinite}
 #ask.on{display:block}
-#talk{font-size:20px;padding:26px 16px;border-color:var(--blood);box-shadow:5px 5px 0 0 var(--blood);touch-action:none}
-#talk.down{background:var(--blood);color:#1a0508;box-shadow:1px 1px 0 0 var(--blood)}
-#talk small{display:block;font-family:var(--text);text-transform:none;letter-spacing:0;font-weight:400;font-size:15px;color:#5c4f3d;margin-top:4px}
-#heard{min-height:22px;font-size:16px;color:var(--ink-soft)}
-.dice{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
-.dice button{font-family:var(--display);font-size:17px;padding:12px 0;background:var(--plate);color:var(--ink);border:2px solid var(--hatch);cursor:pointer}
+
+/* разговор */
+#lich{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:start}
+#lich .face{width:64px;height:64px;border-radius:50%;border:3px solid var(--candle);background:#000 url(/img/lich_closed.webp) 50% 22%/260% auto}
+#lich .plate .in{font-size:17px;line-height:1.3;min-height:64px}
+#talk{font-size:20px;width:220px;height:220px;border-radius:50%;margin:6px auto;display:grid;place-items:center;align-content:center;background:#7a2a1c;color:var(--paper);border:6px double var(--paper);box-shadow:0 0 0 4px #7a2a1c,6px 8px 0 4px var(--hatch);touch-action:none}
+#talk.down{background:var(--blood);transform:scale(.96);box-shadow:0 0 0 4px var(--blood),0 0 0 14px rgba(228,87,74,.25)}
+#talk small{display:block;font-family:var(--text);text-transform:none;letter-spacing:0;font-weight:400;font-size:14px;color:#e9d9b8;margin-top:6px}
+#heard{min-height:22px;font-size:16px;color:var(--ink-soft);text-align:center}
 form{display:grid;grid-template-columns:1fr auto;gap:8px}
+
+/* вкладки */
+#tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:#0d0a07;border-top:3px solid var(--hatch);padding:8px max(8px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
+#tabs button{background:none;border:0;color:var(--ink-soft);display:grid;justify-items:center;gap:2px;font-family:var(--label);font-weight:700;letter-spacing:.06em;font-size:12px;text-transform:uppercase;padding:4px 0;cursor:pointer;position:relative}
+#tabs svg{width:34px;height:34px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#tabs button[aria-selected="true"]{color:var(--candle)}
+#tabs button.ping::after{content:"";position:absolute;top:0;right:26%;width:12px;height:12px;border-radius:50%;background:var(--candle);animation:pulse 1s ease-in-out infinite}
 </style>
 </head>
 <body>
 <div class="w">
-  <h1>Нижний Край</h1>
+  <h1 id="title">Нижний Край</h1>
   <div id="err"></div>
 
   <section class="view" id="v-join">
@@ -79,17 +113,42 @@ form{display:grid;grid-template-columns:1fr auto;gap:8px}
   </section>
 
   <section class="view" id="v-play" hidden>
-    <div class="plate shadow sheet"><div class="in" id="sheet"></div></div>
-    <div id="lich"></div>
-    <button class="btn" id="ask" type="button"></button>
-    <button class="btn" id="talk" type="button">Зажми и говори<small>отпустил — лич услышал</small></button>
-    <div id="heard"></div>
-    <form id="form"><input id="txt" type="text" autocomplete="off" placeholder="или напиши текстом" aria-label="Сообщение личу"><button class="btn" type="submit">Сказать</button></form>
-    <div class="label">Бросить кубик</div>
-    <div class="dice" id="dice"></div>
-    <button class="btn dark" id="remake" type="button">Слепить другого монстра</button>
+    <div class="tab" id="t-sheet">
+      <div class="plate shadow sheet"><div class="in" id="sheet"></div></div>
+      <button class="btn dark" id="remake" type="button">Слепить другого монстра</button>
+    </div>
+
+    <div class="tab" id="t-gear" hidden>
+      <h2>Амуниция</h2>
+      <div class="muted" id="gear-hint">Возьми с собой три вещи. Нажми на вещь, потом «Взять».</div>
+      <div class="slots" id="slots"></div>
+      <div class="plate shadow detail"><div class="in" id="detail"><div class="muted" style="grid-column:1/-1;color:#5c4f3d">Нажми на вещь, чтобы рассмотреть.</div></div></div>
+      <div class="grid2"><button class="btn" id="take" type="button" disabled>Взять</button><button class="btn main" id="use" type="button" disabled>Использовать</button></div>
+    </div>
+
+    <div class="tab" id="t-dice" hidden>
+      <h2>Кубики</h2>
+      <button class="btn" id="ask" type="button"></button>
+      <div class="dice6" id="dice"></div>
+      <button class="btn main" id="throw" type="button">Бросить d20</button>
+      <div class="muted">Кубик покатится по столу лича на большом экране.</div>
+    </div>
+
+    <div class="tab" id="t-talk" hidden>
+      <div id="lich"><div class="face"></div><div class="plate"><div class="in" id="lich-text">Лич пока молчит.</div></div></div>
+      <button class="btn" id="talk" type="button">Зажми<br>и говори<small>отпустил — лич услышал</small></button>
+      <div id="heard"></div>
+      <form id="form"><input id="txt" type="text" autocomplete="off" placeholder="или напиши текстом" aria-label="Сообщение личу"><button class="btn" type="submit">Сказать</button></form>
+    </div>
   </section>
 </div>
+
+<nav id="tabs" hidden>
+  <button type="button" data-tab="sheet" aria-selected="true"><svg viewBox="0 0 34 34"><path d="M9 5h14a3 3 0 0 1 3 3v19a3 3 0 0 0-3-3H9z"/><path d="M9 5a3 3 0 0 0-3 3v17a3 3 0 0 0 3 3h14"/><path d="M12 11h9M12 16h9M12 21h5"/></svg>Лист</button>
+  <button type="button" data-tab="gear"><svg viewBox="0 0 34 34"><path d="M8 13h18l-1.5 15h-15z"/><path d="M12 13V9a5 5 0 0 1 10 0v4"/><path d="M13 19h8"/></svg>Амуниция</button>
+  <button type="button" data-tab="dice"><svg viewBox="0 0 34 34"><path d="M17 3 29 10v14L17 31 5 24V10z"/><path d="M17 11 24 23H10z"/><path d="M17 3v8M5 10l5 13M29 10l-5 13M10 23l7 8 7-8"/></svg>Кубики</button>
+  <button type="button" data-tab="talk"><svg viewBox="0 0 34 34"><path d="M6 7h22v16H16l-7 6v-6H6z"/><path d="M12 13h10M12 18h6"/></svg>Разговор</button>
+</nav>
 <script src="/pad.js"></script>
 </body>
 </html>
