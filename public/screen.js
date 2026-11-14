@@ -56,12 +56,16 @@ function onMsg(m) {
   else if (m.t === 'rolled') { addLog(m.name, 'бросил ' + m.die + ': ' + m.n); }
   else if (m.t === 'do_roll') doRoll(m.pid, m.die, m.power);
   else if (m.t === 'gift') showGift(m);
+  else if (m.t === 'scene') showScene(m, true);
   else if (m.t === 'error') err(m.text);
 }
 
 // ---------- монстры и комната ----------
 function renderState() {
   $('scene').textContent = state.scene || 'Логово лича';
+  drawMap();
+  const cp = (state.places || [])[state.cur];
+  if (cp && cp.v && sceneShown !== state.cur + ':' + cp.v) showScene({ i: state.cur, name: cp.name, v: cp.v }, false);
   const ps = state.players || [];
   $('players').innerHTML = ps.map((p) => {
     const m = p.monster;
@@ -72,14 +76,36 @@ function renderState() {
   }).join('') || '<div class="url">Пока никого. Наведи камеру телефона на код.</div>';
   const ready = ps.some((p) => p.monster);
   $('start').hidden = state.started || !ready;
-  $('log').innerHTML = (state.log || []).slice(-6).map((l) => `<div><b>${esc(l.who)}</b> ${esc(l.text)}</div>`).join('');
+  $('log').innerHTML = (state.log || []).slice(-3).map((l) => `<div><b>${esc(l.who)}</b> ${esc(l.text)}</div>`).join('');
 }
 function addLog(who, text) {
   const d = document.createElement('div'); d.innerHTML = `<b>${esc(who)}</b> ${esc(text)}`;
-  $('log').appendChild(d); while ($('log').children.length > 6) $('log').firstChild.remove();
+  $('log').appendChild(d); while ($('log').children.length > 3) $('log').firstChild.remove();
 }
 $('start').addEventListener('click', () => { send({ t: 'start' }); $('start').hidden = true; });
 function showAsk(roll) { $('ask').textContent = roll ? `${roll.who}: бросай ${roll.die} — ${roll.why}` : ''; }
+
+// ---------- картинка места и карта ----------
+let sceneShown = '';
+function showScene(m, fresh) {
+  sceneShown = m.i + ':' + m.v;
+  const c = $('scenecard');
+  c.querySelector('img').src = `/api/scene?room=${room}&i=${m.i}&v=${m.v}`;
+  c.querySelector('b').textContent = m.name;
+  c.hidden = false; c.classList.remove('in');
+  if (fresh) { void c.offsetWidth; c.classList.add('in', 'big'); setTimeout(() => c.classList.remove('big'), 5200); }
+}
+$('scenecard').addEventListener('click', () => $('scenecard').classList.toggle('big'));
+function drawMap() {
+  const P = state.places || [], E = state.edges || [], cur = state.cur || 0, paths = state.paths || [];
+  // раскладка: тропа змейкой сверху вниз, как разрез подземелья
+  const pos = P.map((_, i) => { const row = Math.floor(i / 3), col = i % 3; const x = 34 + (row % 2 ? 2 - col : col) * 66 + (i % 2 ? 6 : -4); return [x, 26 + row * 44 + (col === 1 ? 8 : 0)]; });
+  let h = '<defs><pattern id="mh" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="#14100c" stroke-width=".6" opacity=".35"/></pattern></defs><rect x="6" y="6" width="188" height="198" fill="url(#mh)" opacity=".5"/>';
+  E.forEach(([a, b]) => { if (pos[a] && pos[b]) { const [x1, y1] = pos[a], [x2, y2] = pos[b]; h += `<path d="M${x1} ${y1}Q${(x1 + x2) / 2 + 8} ${(y1 + y2) / 2 - 8} ${x2} ${y2}" fill="none" stroke="#f6ecd3" stroke-width="9" stroke-linecap="round"/><path d="M${x1} ${y1}Q${(x1 + x2) / 2 + 8} ${(y1 + y2) / 2 - 8} ${x2} ${y2}" fill="none" stroke="#14100c" stroke-width="1.6" stroke-dasharray="4 3"/>`; } });
+  if (pos[cur]) paths.forEach((t, k) => { const [x, y] = pos[cur], a = (-0.5 + k * 0.5) * 1.1 + 0.6, x2 = Math.max(20, Math.min(180, x + Math.cos(a) * 34)), y2 = Math.min(198, y + Math.sin(a) * 30 + 8); h += `<path d="M${x} ${y}L${x2} ${y2}" stroke="#964f05" stroke-width="1.4" stroke-dasharray="2 3"/><circle cx="${x2}" cy="${y2}" r="4" fill="#f6ecd3" stroke="#964f05" stroke-width="1.4"/><text x="${x2}" y="${y2 + 12}" text-anchor="middle" style="fill:#964f05">${esc(t)}?</text>`; });
+  P.forEach((p, i) => { const [x, y] = pos[i], on = i === cur; h += `<circle cx="${x}" cy="${y}" r="${on ? 11 : 8}" fill="#f6ecd3" stroke="#14100c" stroke-width="2"/><circle cx="${x}" cy="${y}" r="${on ? 6 : 3.5}" fill="${on ? '#0f8f80' : '#14100c'}" ${on ? 'class="cur"' : ''}/><text x="${x}" y="${y - 13}" text-anchor="middle">${esc(p.name)}</text>`; });
+  $('map').innerHTML = h;
+}
 
 // ---------- вещь в подарок: карточка по центру, потом летит к монстру ----------
 const giftQ = [];

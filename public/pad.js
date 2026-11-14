@@ -59,7 +59,7 @@
     if (!me) return;
     if (me.making) return show('wait');
     if (me.monster && !wantRemake) {
-      drawSheet(); drawGear(); if (state.lich) showLich(state.lich.text, state.lich.roll);
+      drawSheet(); drawGear(); drawPaths(); if (state.lich) showLich(state.lich.text, state.lich.roll);
       $('title').textContent = me.monster.name;
       return show('play');
     }
@@ -185,6 +185,12 @@
   }
   th.addEventListener('pointerup', release); th.addEventListener('pointercancel', release);
   th.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+  function drawPaths() {
+    var ps = state.paths || [];
+    $('paths').innerHTML = ps.length ? '<div class="label" style="text-align:center">Куда идём</div>' + ps.map(function (t, i) { return '<button type="button" class="btn" data-p="' + i + '">' + esc(t) + '</button>'; }).join('') : '';
+  }
+  $('paths').addEventListener('click', function (e) { var b = e.target.closest('button[data-p]'); if (!b) return; var t = (state.paths || [])[Number(b.dataset.p)]; if (!t) return; $('heard').textContent = 'Ты: идём — ' + t; send({ t: 'say', text: 'Идём сюда: ' + t + '.' }); $('paths').innerHTML = ''; });
 
   // ---------- разговор ----------
   function showLich(text, roll) {

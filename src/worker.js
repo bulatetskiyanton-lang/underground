@@ -29,6 +29,8 @@ const LICH_PROMPT = `Ты — старый лич на пенсии, масте�
 - Если исход действия неясен — попроси бросок: заполни roll (кто бросает, какой кубик из d4, d6, d8, d10, d12, d20, зачем). Чем сложнее дело, тем крупнее кубик не нужен: обычно d20, для мелочей d6.
 - Когда приходит результат броска: 1 — позорный провал, максимум — триумф, середина — получилось криво. Опиши последствия сразу.
 - Не решай за игроков, что делают их монстры.
+- Когда монстры приходят в новое место или происходит что-то, что стоит показать, заполни place: название места и описание картинки по-английски. Картинка появится на экране, а место — на карте. Не чаще раза в два-три хода.
+- Когда есть развилка, заполни paths: два-три коротких варианта, куда пойти дальше. Они появятся на карте и у игроков кнопками.
 - Если по сюжету монстр что-то находит, получает или крадёт (осколок, ключ, зелье, кость, монету) — заполни give: кому и что. Вещь сразу появится у него в амуниции. Дари редко и со смыслом, не чаще раза в несколько ходов.
 - Говори на том языке, на котором говорят игроки (русский или украинский).`;
 
@@ -41,6 +43,13 @@ const LICH_TOOL = {
       say: { type: 'string', description: 'Что лич говорит вслух: 1-2 предложения, до 180 знаков' },
       mood: { type: 'string', enum: ['ворчит', 'смеётся', 'злится', 'шепчет', 'доволен'] },
       scene: { type: 'string', description: 'Где сейчас монстры, 2-4 слова' },
+      place: {
+        type: 'object',
+        description: 'Новое место или сцена, которую стоит показать',
+        properties: { name: { type: 'string', description: 'Название места, 1-3 слова' }, look_en: { type: 'string', description: 'English: what the place looks like, one sentence, no characters names' } },
+        required: ['name', 'look_en'],
+      },
+      paths: { type: 'array', items: { type: 'string' }, description: 'До трёх вариантов, куда идти дальше, по 1-3 слова' },
       give: {
         type: 'object',
         description: 'Заполни, только если монстр получил вещь',
@@ -133,10 +142,11 @@ async function claude(env, { system, user, tool, maxTokens = 400, timeout = 2000
 }
 
 // ---------- портрет монстра ----------
-async function genPortrait(env, look) {
+const genPortrait = (env, look) => genPicture(env, `Bust portrait of a dungeon monster: ${clean(look, 400)}.`);
+async function genPicture(env, prompt) {
   if (!env.AI) return null;
   const form = new FormData();
-  form.append('prompt', `Bust portrait of a dungeon monster: ${clean(look, 400)}. ${STYLE}`);
+  form.append('prompt', `${prompt} ${STYLE}`);
   form.append('width', '768');
   form.append('height', '768');
   const packed = new Response(form);
@@ -157,6 +167,10 @@ export class Room {
     this.log = [];               // { who, text }
     this.started = false;
     this.scene = 'Логово лича';
+    this.places = [{ name: 'Логово лича', v: 0 }];
+    this.edges = [];
+    this.cur = 0;
+    this.paths = [];
     this.lastLich = null;
     this.chain = Promise.resolve();
     this.seq = 0;
@@ -166,6 +180,7 @@ export class Room {
         if (s) {
           this.players = new Map(s.players.map((p) => [p.pid, { ...p, online: false, making: false }]));
           this.log = s.log || []; this.started = !!s.started; this.scene = s.scene || this.scene; this.lastLich = s.lastLich || null;
+          if (s.places?.length) { this.places = s.places; this.edges = s.edges || []; this.cur = s.cur || 0; this.paths = s.paths || []; }
         }
       } catch (e) { console.error('restore', e); }
     });
@@ -175,7 +190,7 @@ export class Room {
     if (this.saveTimer) return;
     this.saveTimer = setTimeout(async () => {
       this.saveTimer = null;
-      try { await this.ctx.storage.put('snap', { players: [...this.players.values()], log: this.log.slice(-40), started: this.started, scene: this.scene, lastLich: this.lastLich }); } catch (e) { console.error('save', e); }
+      try { await this.ctx.storage.put('snap', { players: [...this.players.values()], log: this.log.slice(-40), started: this.started, scene: this.scene, lastLich: this.lastLich, places: this.places, edges: this.edges, cur: this.cur, paths: this.paths }); } catch (e) { console.error('save', e); }
     }, 400);
   }
 
@@ -184,6 +199,11 @@ export class Room {
     if (url.pathname === '/api/portrait') {
       const buf = await this.ctx.storage.get(`img:${url.searchParams.get('pid')}`);
       if (!buf) return new Response('нет портрета', { status: 404 });
+      return new Response(buf, { headers: { 'content-type': 'image/jpeg', 'cache-control': 'private, max-age=600' } });
+    }
+    if (url.pathname === '/api/scene') {
+      const buf = await this.ctx.storage.get(`scene:${Number(url.searchParams.get('i')) || 0}`);
+      if (!buf) return new Response('нет картинки', { status: 404 });
       return new Response(buf, { headers: { 'content-type': 'image/jpeg', 'cache-control': 'private, max-age=600' } });
     }
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('Expected WebSocket', { status: 426 });
@@ -215,7 +235,7 @@ export class Room {
 
   view() {
     return {
-      t: 'state', started: this.started, scene: this.scene, lich: this.lastLich,
+      t: 'state', started: this.started, scene: this.scene, lich: this.lastLich, places: this.places, edges: this.edges, cur: this.cur, paths: this.paths,
       players: [...this.players.values()].map((p) => ({ pid: p.pid, name: p.name, race: p.race, monster: p.monster, gear: p.gear || [], fresh: p.fresh ?? -1, making: !!p.making, online: !!p.online, pv: p.pv || 0 })),
       log: this.log.slice(-8),
     };
@@ -241,7 +261,7 @@ export class Room {
     if (c.role === 'screen') {
       if (m.t === 'start') { this.started = true; this.state(); this.turn({ kind: 'start' }); }
       else if (m.t === 'rolled') this.rolled(m.pid, m.die, m.n);
-      else if (m.t === 'reset') { this.players.clear(); this.log = []; this.started = false; this.lastLich = null; this.scene = 'Логово лича'; this.state(); }
+      else if (m.t === 'reset') { this.players.clear(); this.log = []; this.started = false; this.lastLich = null; this.scene = 'Логово лича'; this.places = [{ name: 'Логово лича', v: 0 }]; this.edges = []; this.cur = 0; this.paths = []; this.state(); }
       return;
     }
     const p = this.players.get(c.pid);
@@ -274,6 +294,24 @@ export class Room {
       if (this.hasScreen()) this.cast({ t: 'do_roll', pid: p.pid, name: this.label(p), die, power }, 'screen');
       else this.rolled(p.pid, die, 1 + Math.floor(Math.random() * Number(die.slice(1))));
     }
+  }
+
+  goto(pl) {
+    const name = clean(pl.name, 30);
+    let i = this.places.findIndex((x) => x.name.toLowerCase() === name.toLowerCase());
+    const isNew = i < 0;
+    if (isNew) { if (this.places.length >= 24) return; this.places.push({ name, v: 0 }); i = this.places.length - 1; }
+    if (i !== this.cur && !this.edges.some(([a, b]) => (a === this.cur && b === i) || (a === i && b === this.cur))) this.edges.push([this.cur, i]);
+    this.cur = i; this.scene = name;
+    if (!isNew && this.places[i].v) { this.cast({ t: 'scene', i, name, v: this.places[i].v }, 'screen'); return; }
+    this.ctx.waitUntil((async () => {
+      const bytes = await genPicture(this.env, `Wide establishing view of a place in an underground monster dungeon: ${clean(pl.look_en, 400)}. No people in the foreground.`);
+      if (!bytes || bytes.byteLength > 1_900_000) return;
+      await this.ctx.storage.put(`scene:${i}`, bytes);
+      this.places[i].v = (this.places[i].v || 0) + 1;
+      this.cast({ t: 'scene', i, name, v: this.places[i].v }, 'screen');
+      this.state();
+    })());
   }
 
   give(g) {
@@ -361,7 +399,7 @@ export class Room {
       : `${ev.who} говорит: «${ev.text}». Ответь как мастер.`;
     const r = await claude(this.env, {
       system: LICH_PROMPT, tool: LICH_TOOL, maxTokens: 350, timeout: 15000,
-      user: `Монстры за столом:\n${JSON.stringify(monsters)}\n\nГде они сейчас: ${this.scene}\n\nПоследние события:\n${this.log.slice(-14).map((l) => `${l.who}: ${l.text}`).join('\n') || 'пока ничего'}\n\nСейчас: ${what}`,
+      user: `Монстры за столом:\n${JSON.stringify(monsters)}\n\nГде они сейчас: ${this.scene}\n\nКарта: уже известные места — ${this.places.map((x) => x.name).join(', ')}\n\nПоследние события:\n${this.log.slice(-14).map((l) => `${l.who}: ${l.text}`).join('\n') || 'пока ничего'}\n\nСейчас: ${what}`,
     });
     this.cast({ t: 'think', on: false });
     let say, mood = 'ворчит', roll = null;
@@ -378,6 +416,10 @@ export class Room {
       }
     }
     if (r.out?.give) this.give(r.out.give);
+    if (r.out) {
+      this.paths = (Array.isArray(r.out.paths) ? r.out.paths : []).map((x) => clean(x, 30)).filter(Boolean).slice(0, 3);
+      if (r.out.place?.name) this.goto(r.out.place);
+    }
     this.log.push({ who: 'Лич', text: say });
     if (this.log.length > 60) this.log.splice(0, this.log.length - 60);
     this.lastLich = { id: ++this.seq, text: say, mood, roll };
@@ -445,7 +487,7 @@ export default {
       const url = new URL(request.url);
       if (url.pathname === '/api/new') return Response.json({ room: randomCode(5) });
       if (url.pathname === '/api/status') return Response.json({ brain: !!env.ANTHROPIC_API_KEY, voice: !!(env.ELEVENLABS_API_KEY && env.ELEVENLABS_VOICE_ID), ears: !!env.ELEVENLABS_API_KEY, art: !!env.AI });
-      if (url.pathname === '/ws' || url.pathname === '/api/portrait') {
+      if (url.pathname === '/ws' || url.pathname === '/api/portrait' || url.pathname === '/api/scene') {
         const room = roomOf(url, 'room');
         if (room.length < 4) return new Response('Bad room code', { status: 400 });
         return env.ROOMS.get(env.ROOMS.idFromName(room)).fetch(request);
