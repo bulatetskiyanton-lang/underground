@@ -78,6 +78,7 @@ function onMsg(m) {
   else if (m.t === 'said') { hush(); addLog(m.name, m.text); }
   else if (m.t === 'rolled') { hush(); addLog(m.name, 'бросил ' + m.die + ': ' + m.n); }
   else if (m.t === 'bones') { showBones(m); }
+  else if (m.t === 'look') { look(m.pid, m.on); }
   else if (m.t === 'votes') { stampVote(m); }
   else if (m.t === 'do_roll') { direct('кубик'); doRoll(m.pid, m.die, m.power); quip('roll'); }
   else if (m.t === 'gift') { gesture('give'); showGift(m); }
@@ -95,7 +96,10 @@ function onMsg(m) {
 // ---------- монстры и комната ----------
 function renderState() {
   $('scene').textContent = state.scene || 'Логово лича';
-  $('goal').innerHTML = (state.goal ? 'Цель: ' + esc(state.goal) : '') + (state.quests || []).map((q) => '<br>' + (q.done ? '☑ ' : '☐ ') + esc(q.text)).join('');
+  $('goal').textContent = state.goal || ''; $('goalsign').hidden = !state.goal;
+  const qs = (state.quests || []).slice(0, 3);
+  $('questnote').hidden = !qs.length;
+  $('quests').innerHTML = qs.map((q, i) => `<div class="q ${q.done ? 'done' : ''}" style="top:${[44.5, 60.4, 76.3][i]}%"><i></i><span>${esc(q.text)}</span></div>`).join('');
   drawMap();
   const cp = (state.places || [])[state.cur];
   if (cp && cp.v && sceneShown !== state.cur + ':' + cp.v) showScene({ i: state.cur, name: cp.name, v: cp.v }, false);
@@ -105,13 +109,31 @@ function renderState() {
     const img = p.pv ? `style="background-image:url('/api/portrait?room=${room}&pid=${encodeURIComponent(p.pid)}&v=${p.pv}')"` : '';
     const inQuiz = p.quiz >= 1 && !p.sealed;
     if (!m || inQuiz) return `<div class="card" data-pid="${esc(p.pid)}"><div class="ph">?</div><div><h3>${esc(p.name || 'Кто-то')}</h3><div class="t">${inQuiz ? (p.quiz <= 5 ? `анкета жильца · ${p.quiz} из 5` : 'лич ставит печать…') : p.making ? 'лич лепит монстра…' : 'выбирает монстра'}</div>${inQuiz ? `<div class="qdots">${[1, 2, 3, 4, 5].map((k) => `<i class="${k < p.quiz ? 'on' : ''}"></i>`).join('')}</div>` : ''}</div></div>`;
-    const gear = (p.gear || []).map((i) => (m.items || [])[i]).filter(Boolean).map((it) => `<img src="/img/items/${esc(it.kind)}.webp" alt="${esc(it.name)}" title="${esc(it.name)}">`).join('');
-    return `<div class="card ${listening.has(p.pid) ? 'live' : ''}" data-pid="${esc(p.pid)}"><div class="ph" ${img}>${p.pv ? '' : esc(m.name[0] || '?')}</div><div><h3>${esc(m.name)}</h3><div class="t">${esc(m.title)} · ${esc(p.name || '')}</div><div class="hp">здоровье ${m.hp}<span class="bn" title="кости"><img src="/img/items/bone.webp" alt="">${p.bones || 0}</span>${p.online ? '' : ' · не в сети'}</div>${gear ? `<div class="gear">${gear}</div>` : ''}</div></div>`;
+    return monsterCard(p, m, img);
   }).join('') || '<div class="url">Пока никого. Наведи камеру телефона на код.</div>';
   const ready = ps.some((p) => p.monster) && !ps.some((p) => p.quiz >= 1 && !p.sealed);
   $('start').hidden = state.started || !ready;
   document.querySelectorAll('.giftcard.sealcard[data-pid]').forEach((c) => { const p = ps.find((x) => x.pid === c.dataset.pid); if (p && p.pv) { const ph = c.querySelector('.ph'); ph.style.backgroundImage = `url('/api/portrait?room=${room}&pid=${encodeURIComponent(p.pid)}&v=${p.pv}')`; ph.textContent = ''; } });
   $('log').innerHTML = (state.log || []).slice(-3).map((l) => `<div><b>${esc(l.who)}</b> ${esc(l.text)}</div>`).join('');
+}
+// карта монстра по мастеру A: лицо (портрет, имя, здоровье, вещи с собой) и оборот (умения, кости, все вещи)
+const looking = {}, lookT = {};
+function monsterCard(p, m, img) {
+  const it = (i) => (m.items || [])[i];
+  const gear = (p.gear || []).map(it).filter(Boolean);
+  const ic = (x) => (x ? `<img src="/img/items/${esc(x.kind)}.webp" alt="${esc(x.name)}" title="${esc(x.name)}">` : '');
+  const sk = (m.skills || []).slice(0, 3);
+  return `<div class="mc ${looking[p.pid] ? 'flip' : ''} ${listening.has(p.pid) ? 'live' : ''}" data-pid="${esc(p.pid)}" title="${esc(m.name)} · ${esc(m.title || '')}${p.online ? '' : ' · не в сети'}"><div class="mc-in">
+    <div class="mc-f"><img class="fr" src="/img/ui/v/mcard.svg" alt=""><i class="pt" ${img}>${p.pv ? '' : esc(m.name[0] || '?')}</i><b class="nm">${esc(m.name)}</b><span class="hpv">${m.hp}</span><span class="bn"><img src="/img/items/bone.webp" alt="">${p.bones || 0}</span>${[0, 1, 2].map((k) => `<span class="it it${k + 1}">${ic(gear[k])}</span>`).join('')}</div>
+    <div class="mc-b"><img class="fr" src="/img/ui/v/mcard_back.svg" alt=""><i class="md" ${img}></i><span class="st st1">${m.hp}</span><span class="st st2">${p.bones || 0}</span><span class="st st3">${gear.length}</span>${sk.map((x, k) => `<span class="sk sk${k + 1}">${esc(x.name)} · ${esc(x.die)}</span>`).join('')}${[0, 1, 2, 3, 4, 5].map((k) => `<span class="sl sl${k + 1} ${(p.gear || []).includes(k) ? 'on' : ''}">${ic(it(k))}</span>`).join('')}</div>
+  </div></div>`;
+}
+function look(pid, on) {
+  looking[pid] = !!on;
+  clearTimeout(lookT[pid]);
+  if (on) lookT[pid] = setTimeout(() => look(pid, false), 20000);   // сам вернётся лицом через 20 с
+  const c = document.querySelector(`#players .mc[data-pid="${CSS.escape(pid)}"]`);
+  if (c) c.classList.toggle('flip', !!on);
 }
 function addLog(who, text) {
   const d = document.createElement('div'); d.innerHTML = `<b>${esc(who)}</b> ${esc(text)}`;
@@ -141,7 +163,7 @@ function direct(kind, pid) {
     $('spot').querySelector('i').style.backgroundImage = p.pv ? `url(/api/portrait?room=${room}&pid=${p.pid}&v=${p.pv})` : '';
     $('spot').querySelector('b').textContent = p.monster.name;
     $('spot').hidden = false;
-    document.querySelectorAll('#players .card').forEach((c) => c.classList.toggle('live', c.dataset.pid === pid));
+    document.querySelectorAll('#players [data-pid]').forEach((c) => c.classList.toggle('live', c.dataset.pid === pid));
   }
   focusT = setTimeout(() => direct(''), hold);
 }
@@ -197,7 +219,7 @@ function nextGift() {
   }
   box.appendChild(c);
   setTimeout(() => {
-    const card = document.querySelector(`.card[data-pid="${CSS.escape(m.pid)}"]`);
+    const card = document.querySelector(`#players [data-pid="${CSS.escape(m.pid)}"]`);
     if (card) {
       const a = c.getBoundingClientRect(), b = card.getBoundingClientRect();
       c.style.setProperty('--fx', (b.left + b.width / 2 - (a.left + a.width / 2)) + 'px');
@@ -217,7 +239,7 @@ function showBones(m) {
   box.appendChild(c);
   addLog(m.name, (m.n > 0 ? 'получил ' : 'отдал ') + bonesWord(m.n));
   setTimeout(() => {
-    const card = document.querySelector(`.card[data-pid="${CSS.escape(m.pid)}"]`);
+    const card = document.querySelector(`#players [data-pid="${CSS.escape(m.pid)}"]`);
     if (card) { const a = c.getBoundingClientRect(), b = card.getBoundingClientRect(); c.style.setProperty('--fx', (b.left + b.width / 2 - (a.left + a.width / 2)) + 'px'); c.style.setProperty('--fy', (b.top + b.height / 2 - (a.top + a.height / 2)) + 'px'); }
     else { c.style.setProperty('--fx', '-60vw'); c.style.setProperty('--fy', '0px'); }
     c.classList.add('fly');

@@ -76,6 +76,7 @@
   show = function (v) { show0(v); var play = v === 'play'; $('tabs').hidden = !play; document.body.classList.toggle('play', play); if (!play) $('title').textContent = 'Нижний Край'; };
 
   function setTab(t) {
+    if ((t === 'sheet') !== (tab === 'sheet') || t === 'sheet') send({ t: 'look', on: t === 'sheet' });
     tab = t;
     ['sheet', 'gear', 'dice', 'talk'].forEach(function (n) { $('t-' + n).hidden = n !== t; });
     Array.prototype.forEach.call($('tabs').querySelectorAll('button'), function (b) { b.setAttribute('aria-selected', String(b.dataset.tab === t)); if (b.dataset.tab === t) b.classList.remove('ping'); });

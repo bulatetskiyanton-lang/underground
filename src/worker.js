@@ -436,6 +436,7 @@ export class Room {
     else if (m.t === 'quiz_remake') { if (p.quiz && p.quizMade && !p.sealed && !p.making) this.make(p, this.quizMake(p)); }
     else if (m.t === 'skip_intro') { if (this.intro === 'play') this.cast({ t: 'skip_intro' }, 'screen'); }
     else if (m.t === 'talking') this.cast({ t: 'talking', pid: p.pid, on: !!m.on }, 'screen');
+    else if (m.t === 'look') this.cast({ t: 'look', pid: p.pid, on: !!m.on }, 'screen');
     else if (m.t === 'gear') {
       const n = p.monster?.items?.length || 0;
       p.gear = [...new Set((Array.isArray(m.idx) ? m.idx : []).map(Number).filter((i) => Number.isInteger(i) && i >= 0 && i < n))].slice(0, 3);
