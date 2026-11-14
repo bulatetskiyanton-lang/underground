@@ -117,13 +117,15 @@ const LICH_TOOL = {
       place: {
         type: 'object',
         description: 'Новое место или сцена, которую стоит показать',
-        properties: { name: { type: 'string', description: 'Название места, 1-3 слова' }, look_en: { type: 'string', description: 'English: what the place looks like, one sentence, no characters names' } },
+        properties: { name: { type: 'string', description: 'Название места, 1-3 слова' }, hot: { type: 'string', enum: ['слева', 'центр', 'справа'], description: 'Где на картинке главное — туда поедет камера' }, look_en: { type: 'string', description: 'English: what the place looks like, one sentence, no characters names' } },
         required: ['name', 'look_en'],
       },
       goal: { type: 'string', description: 'Текущая цель монстров одной короткой фразой, до 60 знаков. Заполняй всегда.' },
       note: { type: 'string', description: 'Запись в летопись: что важного только что случилось, одна фраза. Только если случилось.' },
       quests: { type: 'array', description: 'Список заданий целиком, 1-4 штуки. Только когда изменился.', items: { type: 'object', properties: { text: { type: 'string', description: 'Задание, до 50 знаков' }, done: { type: 'boolean' } }, required: ['text'] } },
       paths: { type: 'array', items: { type: 'string' }, description: 'До трёх вариантов, куда идти дальше, по 1-3 слова' },
+      focus: { type: 'string', enum: ['лич', 'место', 'кубик', 'монстр', 'карта'], description: 'Режиссёр: что сейчас главное показать на экране. лич — ты сам говоришь важное; место — описываешь, где они; кубик — ждёшь бросок или объявляешь результат; монстр — речь об одном монстре (тогда укажи его в focus_who); карта — выбирают, куда идти.' },
+      focus_who: { type: 'string', description: 'Имя монстра, если focus = монстр' },
       give: {
         type: 'object',
         description: 'Заполни, только если монстр получил вещь',
@@ -230,12 +232,12 @@ async function claude(env, { system, user, tool, maxTokens = 400, timeout = 2000
 
 // ---------- портрет монстра ----------
 const genPortrait = (env, look) => genPicture(env, `Bust portrait of a dungeon monster: ${clean(look, 400)}.`);
-async function genPicture(env, prompt) {
+async function genPicture(env, prompt, w = 768, h = 768) {
   if (!env.AI) return null;
   const form = new FormData();
   form.append('prompt', `${prompt} ${STYLE}`);
-  form.append('width', '768');
-  form.append('height', '768');
+  form.append('width', String(w));
+  form.append('height', String(h));
   const packed = new Response(form);
   try {
     const out = await env.AI.run('@cf/black-forest-labs/flux-2-klein-4b', { multipart: { body: packed.body, contentType: packed.headers.get('content-type') } });
@@ -437,16 +439,16 @@ export class Room {
     const name = clean(pl.name, 30);
     let i = this.places.findIndex((x) => x.name.toLowerCase() === name.toLowerCase());
     const isNew = i < 0;
-    if (isNew) { if (this.places.length >= 24) return; this.places.push({ name, v: 0 }); i = this.places.length - 1; }
+    if (isNew) { if (this.places.length >= 24) return; this.places.push({ name, v: 0, hot: ['слева', 'центр', 'справа'].includes(pl.hot) ? pl.hot : 'центр' }); i = this.places.length - 1; }
     if (i !== this.cur && !this.edges.some(([a, b]) => (a === this.cur && b === i) || (a === i && b === this.cur))) this.edges.push([this.cur, i]);
     this.cur = i; this.scene = name;
-    if (!isNew && this.places[i].v) { this.cast({ t: 'scene', i, name, v: this.places[i].v }, 'screen'); return; }
+    if (!isNew && this.places[i].v) { this.cast({ t: 'scene', i, name, v: this.places[i].v, hot: this.places[i].hot || 'центр' }, 'screen'); return; }
     this.ctx.waitUntil((async () => {
-      const bytes = await genPicture(this.env, `Wide establishing view of a place in an underground monster dungeon: ${clean(pl.look_en, 400)}. No people in the foreground.`);
+      const bytes = await genPicture(this.env, `Wide establishing view of a place in an underground monster dungeon, seen from inside like a stage backdrop, the upper two thirds hold everything important, the bottom is dark floor: ${clean(pl.look_en, 400)}. No people, no hands, no figures. Warm candle light from the right.`, 1024, 768);
       if (!bytes || bytes.byteLength > 1_900_000) return;
       await this.ctx.storage.put(`scene:${i}`, bytes);
       this.places[i].v = (this.places[i].v || 0) + 1;
-      this.cast({ t: 'scene', i, name, v: this.places[i].v }, 'screen');
+      this.cast({ t: 'scene', i, name, v: this.places[i].v, hot: this.places[i].hot || 'центр' }, 'screen');
       this.state();
     })());
   }
@@ -667,7 +669,9 @@ export class Room {
     const after = ev.kind === 'say' ? `${ev.who}: ${clean(ev.text, 120)}` : ev.kind === 'roll' ? `${ev.who} выбросил ${ev.n} на ${ev.die}` : idle ? 'тишина за столом' : ev.kind;
     this.log.push({ who: 'Лич', text: say });
     if (this.log.length > 60) this.log.splice(0, this.log.length - 60);
-    this.lastLich = { id: ++this.seq, text: say, mood, roll, gesture };
+    let focus = r.out?.focus || '', focusPid = null;
+    if (focus === 'монстр') { const fw = clean(r.out.focus_who, 40).toLowerCase(); focusPid = [...this.players.values()].find((p) => p.monster && fw && (fw.includes(p.monster.name.toLowerCase()) || (p.name && fw.includes(p.name.toLowerCase()))))?.pid || null; if (!focusPid) focus = ''; }
+    this.lastLich = { id: ++this.seq, text: say, mood, roll, gesture, focus, focusPid };
     this.lines = [...this.lines, { id: this.seq, text: say, after }].slice(-20);
     this.cast({ t: 'lich', ...this.lastLich });
     this.state();

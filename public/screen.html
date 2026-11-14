@@ -108,16 +108,15 @@ aside{padding:16px;display:flex;flex-direction:column;gap:14px;overflow:hidden;m
 /* ===== экран v3: рисованные панели, жёсткая сетка ===== */
 #app{grid-template-columns:minmax(290px,1fr) auto minmax(290px,1fr);background:#0b0806}
 #stage{max-width:calc(100vw - 580px)}
-aside:first-of-type{padding-right:calc(16px + 2.2vw)}
-aside:last-of-type{padding-left:calc(16px + 2.2vw)}
+
 aside{position:relative;padding:18px 16px;gap:12px;background:#17110c url(/img/ui/wood.webp) center/cover;box-shadow:inset 0 0 60px 20px rgba(0,0,0,.75);z-index:0}
 aside::before{content:"";position:absolute;inset:0;background:linear-gradient(rgba(14,9,5,.80),rgba(8,5,3,.88))}
 aside>*{position:relative}
 #stage{border:0;box-shadow:0 0 0 3px #0b0806,0 0 40px 10px #000;z-index:1}
-#frame{position:absolute;left:-11.4%;top:-19.7%;width:122.9%;height:138.3%;clip-path:inset(12.1% 6.8%);pointer-events:none;z-index:3}
+#frame{position:absolute;left:-8.1%;top:-15.9%;width:116.2%;height:130.9%;pointer-events:none;z-index:3}
 #plate,#scenecard,#giftfx,#ask,#res,#mood{z-index:4}
-#plate{left:7%;right:7%;bottom:5%}
-#mood{left:6%;top:6%} #res{right:6%;top:6%}
+#plate{left:9%;right:9%;bottom:7.5%}
+#mood{left:8%;top:9%} #res{right:8%;top:9%}
 .plq{display:grid;place-items:center;aspect-ratio:900/281;width:100%;background:url(/img/ui/plaque.webp) center/100% 100% no-repeat;font-family:var(--display);color:var(--ink-dark);line-height:1;text-align:center;padding:0 27%;white-space:nowrap;overflow:hidden}
 .plq.code{font-size:clamp(20px,2vw,34px);letter-spacing:.1em;color:#7a2a12}
 .plq.name{font-size:clamp(13px,1.15vw,20px);white-space:normal;line-height:1.02}
@@ -139,6 +138,27 @@ aside>*{position:relative}
 .rack button{font-size:clamp(12px,1vw,16px);padding:7px 0;background:var(--paper-2);color:var(--ink-dark);border:2px solid var(--ink-dark);box-shadow:2px 3px 0 rgba(0,0,0,.6)}
 .rack button[aria-pressed="true"]{background:var(--candle);color:var(--ink-dark);border-color:var(--ink-dark)}
 .power{border-color:#d9c9a3}
+
+/* ===== живой фон за личом и режиссёр ===== */
+#bgscene{position:absolute;inset:0;overflow:hidden;pointer-events:none;-webkit-mask-image:linear-gradient(#000 58%,transparent 71%),radial-gradient(ellipse 10% 24% at 91% 57%,transparent 55%,#000 100%);-webkit-mask-composite:source-in;mask-image:linear-gradient(#000 58%,transparent 71%),radial-gradient(ellipse 10% 24% at 91% 57%,transparent 55%,#000 100%);mask-composite:intersect}
+#bgscene img{position:absolute;inset:-4%;width:108%;height:108%;object-fit:cover;opacity:0;transition:opacity 1.6s ease;filter:sepia(.35) saturate(.8)}
+#bgscene img.on{opacity:1;animation:kb 26s ease-in-out infinite alternate}
+#bgscene[data-hot="слева"] img{transform-origin:22% 40%} #bgscene[data-hot="центр"] img{transform-origin:50% 40%} #bgscene[data-hot="справа"] img{transform-origin:78% 40%}
+@keyframes kb{from{transform:scale(1) translate(0,0)}to{transform:scale(1.16) translate(-1.5%,1%)}}
+#stage>video,#stage>canvas,#stage>#bgscene{transform:scale(var(--z,1));transform-origin:var(--ox,50%) var(--oy,50%);transition:transform 1.3s cubic-bezier(.3,.1,.2,1),opacity .8s ease}
+#stage.f-lich{--z:1.2;--ox:50%;--oy:30%}
+#stage.f-dice{--z:1.38;--ox:74%;--oy:88%}
+#stage{overflow:hidden}
+#stage.video.f-place video.v.on,#stage.f-place canvas.fx{opacity:.22}
+#stage.f-place #bgscene img.on{animation-duration:9s}
+#scenecard{display:none!important}
+#spot{position:absolute;left:5%;top:9%;width:24%;z-index:5;display:grid;justify-items:center;gap:8px;animation:spotIn .7s cubic-bezier(.2,1.3,.3,1) both}
+#spot[hidden]{display:none}
+#spot i{width:100%;aspect-ratio:1;border-radius:50%;background:#1b1613 center/cover;border:5px solid var(--ink-dark);box-shadow:0 0 0 4px var(--paper-2),0 0 0 7px var(--ink-dark),0 0 40px 8px rgba(63,214,192,.55)}
+#spot b{font-family:var(--display);font-weight:400;font-size:clamp(18px,2vw,32px);color:var(--ink-dark);background:var(--paper-2);border:3px solid var(--ink-dark);padding:2px 16px;box-shadow:4px 5px 0 rgba(0,0,0,.6)}
+@keyframes spotIn{from{transform:translateX(-60%) rotate(-8deg);opacity:0}to{transform:none;opacity:1}}
+.mapbox{transition:transform .9s cubic-bezier(.2,1.1,.3,1);transform-origin:100% 20%;z-index:2}
+body.f-map .mapbox{transform:scale(1.7) translate(-6%,4%);z-index:9}
 </style>
 </head>
 <body>
@@ -174,6 +194,7 @@ aside>*{position:relative}
     <img class="f" data-f="listen" src="/img/lich_listen.webp" alt="">
     <img class="f" data-f="think" src="/img/lich_think.webp" alt="">
     <video class="bg" id="v-cave" src="/video/cave.mp4" poster="/img/lich_noeyes.webp" muted loop playsinline preload="auto"></video>
+    <div id="bgscene"><img id="bg-a" alt=""><img id="bg-b" alt=""></div>
     <video class="v" id="v-a" muted playsinline preload="auto"></video>
     <video class="v" id="v-b" muted playsinline preload="auto"></video>
     <img id="frame" src="/img/ui/frame.webp" alt="">
@@ -182,6 +203,7 @@ aside>*{position:relative}
     <div id="res" aria-live="polite"></div>
     <div id="ask"></div>
     <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="boil" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence id="boil-n" type="fractalNoise" baseFrequency="0.035" numOctaves="1" seed="1" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
+    <div id="spot" hidden><i></i><b></b></div>
     <div id="scenecard" hidden><div class="im"><img alt=""></div><b></b></div>
     <div id="giftfx"></div>
     <div id="plate" class="plate shadow"><span class="tab">ЛИЧ</span><div class="in" aria-live="polite"><span id="said"></span><span id="rest">Ждёт монстров. Зайдите с телефона по коду слева.</span></div></div>

@@ -49,16 +49,16 @@ const err = (t) => { $('err').textContent = t || ''; };
 
 function onMsg(m) {
   if (m.t === 'state') { state = m; renderState(); if (m.lich && m.lich.id > lastLichId && !speaking) { lastLichId = m.lich.id; showLine(m.lich.text, false); showAsk(m.lich.roll); } }
-  else if (m.t === 'lich') { hush(); lastLichId = m.id; mood = m.mood || ''; stopGesture(['think', 'listen']); if (m.gesture && clipUrl[m.gesture]) gesture(m.gesture); else if (m.roll) gesture('dice'); else if (m.mood === 'смеётся') gesture('laugh'); else if (m.mood === 'злится') gesture('angry'); else if (m.gesture) gesture(m.gesture); else if ((state.paths || []).length) gesture('point'); $('mood').textContent = m.mood || 'говорит'; showAsk(m.roll); speak(m.text); }
+  else if (m.t === 'lich') { direct(m.roll ? 'кубик' : m.focus, m.focusPid); hush(); lastLichId = m.id; mood = m.mood || ''; stopGesture(['think', 'listen']); if (m.gesture && clipUrl[m.gesture]) gesture(m.gesture); else if (m.roll) gesture('dice'); else if (m.mood === 'смеётся') gesture('laugh'); else if (m.mood === 'злится') gesture('angry'); else if (m.gesture) gesture(m.gesture); else if ((state.paths || []).length) gesture('point'); $('mood').textContent = m.mood || 'говорит'; showAsk(m.roll); speak(m.text); }
   else if (m.t === 'think') { hush(); thinking = !!m.on; if (thinking) { $('mood').textContent = 'думает'; if (!m.idle) { gesture('think'); if (Math.random() < 0.6) setTimeout(() => { if (thinking && !speaking) quip('think'); }, 900); } } }
   else if (m.t === 'talking') { hush(); if (m.on) { listening.add(m.pid); stopSpeak(); gesture('listen'); } else { listening.delete(m.pid); if (!listening.size) stopGesture(['listen']); } }
   else if (m.t === 'said') { hush(); addLog(m.name, m.text); }
   else if (m.t === 'rolled') { hush(); addLog(m.name, 'бросил ' + m.die + ': ' + m.n); }
   else if (m.t === 'bones') { showBones(m); }
   else if (m.t === 'votes') { stampVote(m); }
-  else if (m.t === 'do_roll') { doRoll(m.pid, m.die, m.power); quip('roll'); }
+  else if (m.t === 'do_roll') { direct('кубик'); doRoll(m.pid, m.die, m.power); quip('roll'); }
   else if (m.t === 'gift') { gesture('give'); showGift(m); }
-  else if (m.t === 'scene') { gesture('map'); showScene(m, true); }
+  else if (m.t === 'scene') { gesture('map'); showScene(m, true); direct('место'); }
   else if (m.t === 'error') err(m.text);
 }
 
@@ -92,7 +92,38 @@ function showAsk(roll) { $('ask').textContent = roll ? `${roll.who}: броса�
 // «дубль» гравюры: штрихи слегка сдвигаются 9 раз в секунду, как в рисованной анимации
 if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) { let bs = 1; setInterval(() => { const n = document.getElementById('boil-n'); if (n && !$('scenecard').hidden) n.setAttribute('seed', String(bs = bs % 7 + 1)); }, 110); }
 let sceneShown = '';
+// режиссёр: что сейчас главное на экране — под каждое своя раскладка
+let focusT = 0;
+function direct(kind, pid) {
+  const st = $('stage'), map = { 'лич': 'f-lich', 'место': 'f-place', 'кубик': 'f-dice' };
+  clearTimeout(focusT);
+  st.classList.remove('f-lich', 'f-place', 'f-dice'); document.body.classList.remove('f-map'); $('spot').hidden = true;
+  if (!kind) return;
+  let hold = 6000;
+  if (map[kind]) { if (kind === 'место' && !bgOn) return; st.classList.add(map[kind]); if (kind === 'место') hold = 4200; if (kind === 'кубик') hold = 9000; }
+  else if (kind === 'карта') document.body.classList.add('f-map');
+  else if (kind === 'монстр') {
+    const p = (state.players || []).find((x) => x.pid === pid);
+    if (!p || !p.monster) return;
+    $('spot').querySelector('i').style.backgroundImage = p.pv ? `url(/api/portrait?room=${room}&pid=${p.pid}&v=${p.pv})` : '';
+    $('spot').querySelector('b').textContent = p.monster.name;
+    $('spot').hidden = false;
+    document.querySelectorAll('#players .card').forEach((c) => c.classList.toggle('live', c.dataset.pid === pid));
+  }
+  focusT = setTimeout(() => direct(''), hold);
+}
+
+// картинка места становится фоном за личом: стол и свеча остаются, камера медленно едет
+let bgOn = false, bgCur = 0;
+function setBg(url, hot) {
+  const a = [$('bg-a'), $('bg-b')], nx = a[1 - bgCur], pre = new Image();
+  pre.onload = () => { nx.src = url; $('bgscene').dataset.hot = hot || 'центр'; nx.classList.add('on'); a[bgCur].classList.remove('on'); bgCur = 1 - bgCur; bgOn = true; };
+  pre.src = url;
+}
+
+window.NKDebug = { setBg, direct };
 function showScene(m, fresh) {
+  if (m.i > 0 || bgOn) setBg(`/api/scene?room=${room}&i=${m.i}&v=${m.v}`, m.hot || ((state.places || [])[m.i] || {}).hot);
   sceneShown = m.i + ':' + m.v;
   const c = $('scenecard');
   c.querySelector('img').src = `/api/scene?room=${room}&i=${m.i}&v=${m.v}`;
@@ -325,7 +356,7 @@ function frame(now) {
     if (v.playbackRate !== rate) v.playbackRate = rate;
     // начал или кончил говорить — следующим ставим ролик под новое состояние
     if (!gestQ.length && !CLIPS.gest.includes(nextClip) && CLIPS.talk.includes(nextClip) !== !!speaking) cue();
-    { const L = fx.light, fl = 0.94 + 0.06 * Math.sin(now / 53) * Math.sin(now / 131); $('v-cave').style.filter = `brightness(${((0.34 + 0.78 * L) * fl).toFixed(3)}) sepia(${(0.25 * (1 - L)).toFixed(2)})`; vv[cur].style.filter = `brightness(${((0.6 + 0.45 * L) * (0.97 + 0.03 * Math.sin(now / 53))).toFixed(3)})`; }
+    { const L = fx.light, fl = 0.94 + 0.06 * Math.sin(now / 53) * Math.sin(now / 131); $('bgscene').style.filter = $('v-cave').style.filter = `brightness(${((0.34 + 0.78 * L) * fl).toFixed(3)}) sepia(${(0.25 * (1 - L)).toFixed(2)})`; vv[cur].style.filter = `brightness(${((0.6 + 0.45 * L) * (0.97 + 0.03 * Math.sin(now / 53))).toFixed(3)})`; }
     fx.step(now, dt, { enabled: true, active: curClip, time: v.currentTime, speaking, level, listening: listening.size > 0, thinking, blink: !speaking && now < blinkUntil, mood: speaking ? mood : '' });
   }
   $('stage').classList.toggle('hear', !speaking && listening.size > 0);
