@@ -168,6 +168,9 @@ aside>*{position:relative}
 #stage.f-place #bgscene img.on{animation-duration:9s}
 #scenecard{left:8.5%;top:10%;width:33%;transition:width .7s cubic-bezier(.2,1,.3,1),left .7s,top .7s,transform .7s}
 #scenecard .im,#scenecard.big .im{aspect-ratio:4/3}
+/* картинка места висит ЗА плечом лича: лич всегда на первом плане */
+#scenecard{z-index:0;left:6%;top:9%;width:37%}
+#scenecard:not(.big) b{text-align:left;padding-left:5%;max-width:62%}
 #scenecard.big{left:12%;top:8%;width:76%;transform:rotate(0deg);z-index:7}
 #scenecard img{animation:kb 22s ease-in-out infinite alternate;left:-4%;top:-4%;width:108%;height:108%}
 #scenecard[data-hot="слева"] img{transform-origin:22% 45%} #scenecard[data-hot="центр"] img{transform-origin:50% 45%} #scenecard[data-hot="справа"] img{transform-origin:78% 45%}
@@ -282,6 +285,7 @@ aside .mapbox{width:min(100%,26vh);margin-inline:auto}
     <img class="f" data-f="think" src="/img/lich_think.webp" alt="">
     <video class="bg" id="v-cave" src="/video/cave.mp4" poster="/img/lich_noeyes.webp" muted loop playsinline preload="auto"></video>
     <div id="bgscene"><img id="bg-a" alt=""><img id="bg-b" alt=""></div>
+    <div id="scenecard" hidden><div class="im"><img alt=""></div><b></b></div>
     <video class="v" id="v-a" muted playsinline preload="auto"></video>
     <video class="v" id="v-b" muted playsinline preload="auto"></video>
     <img id="frame" src="/img/ui/frame.webp" alt="">
@@ -293,7 +297,6 @@ aside .mapbox{width:min(100%,26vh);margin-inline:auto}
     <div id="ask"></div>
     <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="boil" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence id="boil-n" type="fractalNoise" baseFrequency="0.035" numOctaves="1" seed="1" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
     <div id="spot" hidden><i></i><b></b></div>
-    <div id="scenecard" hidden><div class="im"><img alt=""></div><b></b></div>
     <div id="giftfx"></div>
     <div id="plate" class="plate shadow"><span class="tab" id="tab">ЛИЧ</span><div class="in" aria-live="polite"><span id="said"></span><span id="rest">Ждёт монстров. Зайдите с телефона по коду слева.</span></div></div>
   </main>
@@ -316,7 +319,7 @@ aside .mapbox{width:min(100%,26vh);margin-inline:auto}
 <script src="/vendor/cannon.min.js"></script>
 <script src="/dice.js"></script>
 <script src="/quiz.js"></script>
-<script src="/nkmap.js"></script>
-<script type="module" src="/screen.js"></script>
+<script src="/nkmap.js?v=1794694672"></script>
+<script type="module" src="/screen.js?v=1794694672"></script>
 </body>
 </html>
