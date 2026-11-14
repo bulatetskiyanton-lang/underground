@@ -61,6 +61,15 @@ h2{font-size:26px;color:var(--paper)}
 .detail p{margin:6px 0 0;font-size:14px;line-height:1.25;color:#3a2f22}
 .detail .hint{position:absolute;left:24%;right:24%;bottom:5%;height:12%;display:grid;place-items:center;font-family:var(--label);font-weight:700;letter-spacing:.06em;font-size:12px;color:#5c4f3d;text-transform:uppercase}
 
+.slot.fresh::before{content:"НОВОЕ";position:absolute;left:50%;top:-8px;transform:translateX(-50%);background:var(--candle);color:var(--ink-dark);font-family:var(--label);font-weight:700;font-size:11px;letter-spacing:.08em;padding:1px 6px;z-index:2;animation:pulse 1.2s ease-in-out infinite}
+.gift{position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top));z-index:9;display:grid;grid-template-columns:72px 1fr;gap:12px;align-items:center;text-align:left;background:var(--paper-2);color:var(--ink-dark);border:4px solid var(--ink-dark);outline:2px solid var(--candle);padding:10px 12px;font-family:var(--text);font-size:14px;line-height:1.25;box-shadow:0 10px 30px rgba(0,0,0,.6);animation:giftIn .55s cubic-bezier(.2,1.4,.4,1) both;cursor:pointer}
+.gift img{width:72px;height:72px;mix-blend-mode:multiply}
+.gift small{display:block;font-family:var(--label);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--candle);font-size:12px}
+.gift b{display:block;font-family:var(--display);font-weight:400;font-size:21px}
+.gift.out{animation:giftOut .45s ease-in both}
+@keyframes giftIn{from{transform:translateY(-140%) rotate(-4deg);opacity:0}to{transform:none;opacity:1}}
+@keyframes giftOut{to{transform:translateY(-140%);opacity:0}}
+
 /* кубики */
 .dtitle{width:100%;aspect-ratio:760/193;background:url(/img/pad/dice_title.webp) center/100% 100% no-repeat;display:grid;place-items:center;padding-bottom:6%}
 .dtitle h2{color:var(--ink-dark);font-size:26px}

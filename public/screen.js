@@ -55,6 +55,7 @@ function onMsg(m) {
   else if (m.t === 'said') { addLog(m.name, m.text); }
   else if (m.t === 'rolled') { addLog(m.name, 'бросил ' + m.die + ': ' + m.n); }
   else if (m.t === 'do_roll') doRoll(m.pid, m.die, m.power);
+  else if (m.t === 'gift') showGift(m);
   else if (m.t === 'error') err(m.text);
 }
 
@@ -66,7 +67,8 @@ function renderState() {
     const m = p.monster;
     const img = p.pv ? `style="background-image:url('/api/portrait?room=${room}&pid=${encodeURIComponent(p.pid)}&v=${p.pv}')"` : '';
     if (!m) return `<div class="card"><div class="ph">?</div><div><h3>${esc(p.name || 'Кто-то')}</h3><div class="t">${p.making ? 'лич лепит монстра…' : 'выбирает монстра'}</div></div></div>`;
-    return `<div class="card ${listening.has(p.pid) ? 'live' : ''}"><div class="ph" ${img}>${p.pv ? '' : esc(m.name[0] || '?')}</div><div><h3>${esc(m.name)}</h3><div class="t">${esc(m.title)} · ${esc(p.name || '')}</div><div class="hp">здоровье ${m.hp}${p.online ? '' : ' · не в сети'}</div></div></div>`;
+    const gear = (p.gear || []).map((i) => (m.items || [])[i]).filter(Boolean).map((it) => `<img src="/img/items/${esc(it.kind)}.webp" alt="${esc(it.name)}" title="${esc(it.name)}">`).join('');
+    return `<div class="card ${listening.has(p.pid) ? 'live' : ''}" data-pid="${esc(p.pid)}"><div class="ph" ${img}>${p.pv ? '' : esc(m.name[0] || '?')}</div><div><h3>${esc(m.name)}</h3><div class="t">${esc(m.title)} · ${esc(p.name || '')}</div><div class="hp">здоровье ${m.hp}${p.online ? '' : ' · не в сети'}</div>${gear ? `<div class="gear">${gear}</div>` : ''}</div></div>`;
   }).join('') || '<div class="url">Пока никого. Наведи камеру телефона на код.</div>';
   const ready = ps.some((p) => p.monster);
   $('start').hidden = state.started || !ready;
@@ -78,6 +80,30 @@ function addLog(who, text) {
 }
 $('start').addEventListener('click', () => { send({ t: 'start' }); $('start').hidden = true; });
 function showAsk(roll) { $('ask').textContent = roll ? `${roll.who}: бросай ${roll.die} — ${roll.why}` : ''; }
+
+// ---------- вещь в подарок: карточка по центру, потом летит к монстру ----------
+const giftQ = [];
+let giftBusy = false;
+function showGift(m) { giftQ.push(m); if (!giftBusy) nextGift(); }
+function nextGift() {
+  const m = giftQ.shift(); if (!m) { giftBusy = false; return; }
+  giftBusy = true;
+  const box = $('giftfx');
+  const c = document.createElement('div'); c.className = 'giftcard';
+  c.innerHTML = `<small>${esc(m.name)} получает</small><img src="/img/items/${esc(m.item.kind)}.webp" alt=""><b>${esc(m.item.name)}</b><p>${esc(m.item.desc)}</p>`;
+  box.appendChild(c);
+  addLog(m.name, 'получил: ' + m.item.name);
+  setTimeout(() => {
+    const card = document.querySelector(`.card[data-pid="${CSS.escape(m.pid)}"]`);
+    if (card) {
+      const a = c.getBoundingClientRect(), b = card.getBoundingClientRect();
+      c.style.setProperty('--fx', (b.left + b.width / 2 - (a.left + a.width / 2)) + 'px');
+      c.style.setProperty('--fy', (b.top + b.height / 2 - (a.top + a.height / 2)) + 'px');
+    } else { c.style.setProperty('--fx', '-60vw'); c.style.setProperty('--fy', '0px'); }
+    c.classList.add('fly');
+    setTimeout(() => { c.remove(); if (card) { card.classList.add('live'); setTimeout(() => card.classList.remove('live'), 900); } nextGift(); }, 720);
+  }, 3600);
+}
 
 // ---------- голос и липсинк ----------
 let curAudio = null, lineText = '', lineDur = 0, lineT0 = 0;

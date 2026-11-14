@@ -29,6 +29,7 @@ const LICH_PROMPT = `Ты — старый лич на пенсии, масте�
 - Если исход действия неясен — попроси бросок: заполни roll (кто бросает, какой кубик из d4, d6, d8, d10, d12, d20, зачем). Чем сложнее дело, тем крупнее кубик не нужен: обычно d20, для мелочей d6.
 - Когда приходит результат броска: 1 — позорный провал, максимум — триумф, середина — получилось криво. Опиши последствия сразу.
 - Не решай за игроков, что делают их монстры.
+- Если по сюжету монстр что-то находит, получает или крадёт (осколок, ключ, зелье, кость, монету) — заполни give: кому и что. Вещь сразу появится у него в амуниции. Дари редко и со смыслом, не чаще раза в несколько ходов.
 - Говори на том языке, на котором говорят игроки (русский или украинский).`;
 
 const LICH_TOOL = {
@@ -40,6 +41,17 @@ const LICH_TOOL = {
       say: { type: 'string', description: 'Что лич говорит вслух: 1-2 предложения, до 180 знаков' },
       mood: { type: 'string', enum: ['ворчит', 'смеётся', 'злится', 'шепчет', 'доволен'] },
       scene: { type: 'string', description: 'Где сейчас монстры, 2-4 слова' },
+      give: {
+        type: 'object',
+        description: 'Заполни, только если монстр получил вещь',
+        properties: {
+          who: { type: 'string', description: 'Имя монстра' },
+          name: { type: 'string', description: 'Название вещи, 1-3 слова' },
+          desc: { type: 'string', description: 'Что даёт или чем странна, до 60 знаков' },
+          kind: { type: 'string', enum: ITEM_KINDS },
+        },
+        required: ['who', 'name', 'desc', 'kind'],
+      },
       roll: {
         type: 'object',
         description: 'Заполни, только если просишь бросок',
@@ -204,7 +216,7 @@ export class Room {
   view() {
     return {
       t: 'state', started: this.started, scene: this.scene, lich: this.lastLich,
-      players: [...this.players.values()].map((p) => ({ pid: p.pid, name: p.name, race: p.race, monster: p.monster, gear: p.gear || [], making: !!p.making, online: !!p.online, pv: p.pv || 0 })),
+      players: [...this.players.values()].map((p) => ({ pid: p.pid, name: p.name, race: p.race, monster: p.monster, gear: p.gear || [], fresh: p.fresh ?? -1, making: !!p.making, online: !!p.online, pv: p.pv || 0 })),
       log: this.log.slice(-8),
     };
   }
@@ -240,6 +252,7 @@ export class Room {
     else if (m.t === 'gear') {
       const n = p.monster?.items?.length || 0;
       p.gear = [...new Set((Array.isArray(m.idx) ? m.idx : []).map(Number).filter((i) => Number.isInteger(i) && i >= 0 && i < n))].slice(0, 3);
+      if (p.fresh != null && p.gear.includes(p.fresh)) p.fresh = -1;
       this.state();
     } else if (m.t === 'use') {
       const it = p.monster?.items?.[Number(m.i)];
@@ -261,6 +274,21 @@ export class Room {
       if (this.hasScreen()) this.cast({ t: 'do_roll', pid: p.pid, name: this.label(p), die, power }, 'screen');
       else this.rolled(p.pid, die, 1 + Math.floor(Math.random() * Number(die.slice(1))));
     }
+  }
+
+  give(g) {
+    const who = clean(g.who, 40).toLowerCase();
+    const ps = [...this.players.values()].filter((p) => p.monster);
+    const p = ps.find((x) => who.includes(x.monster.name.toLowerCase()) || (x.name && who.includes(x.name.toLowerCase()))) || (ps.length === 1 ? ps[0] : null);
+    if (!p) return;
+    const item = { name: clean(g.name, 30), desc: clean(g.desc, 80), kind: ITEM_KINDS.includes(g.kind) ? g.kind : 'chest', gift: true };
+    p.monster.items = [...(p.monster.items || []), item].slice(-12);
+    const i = p.monster.items.length - 1;
+    p.gear = (p.gear || []).filter((k) => k < p.monster.items.length);
+    if (p.gear.length < 3) p.gear.push(i);
+    p.fresh = i;
+    this.log.push({ who: this.label(p), text: `получил: ${item.name}` });
+    this.cast({ t: 'gift', pid: p.pid, name: this.label(p), item, i });
   }
 
   label(p) {
@@ -349,6 +377,7 @@ export class Room {
         roll = { pid: target?.pid || null, who: clean(r.out.roll.who, 40), die: r.out.roll.die, why: clean(r.out.roll.why, 80) };
       }
     }
+    if (r.out?.give) this.give(r.out.give);
     this.log.push({ who: 'Лич', text: say });
     if (this.log.length > 60) this.log.splice(0, this.log.length - 60);
     this.lastLich = { id: ++this.seq, text: say, mood, roll };

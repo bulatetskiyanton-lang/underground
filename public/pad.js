@@ -44,6 +44,7 @@
     else if (m.t === 'state') { state = m; me = (m.players || []).filter(function (p) { return p.pid === pid; })[0] || null; render(); }
     else if (m.t === 'lich') { showLich(m.text, m.roll); }
     else if (m.t === 'make_failed') { err(m.text); wantRemake = true; render(); }
+    else if (m.t === 'gift' && m.pid === pid) { selItem = m.i; ping('gear'); toastGift(m.item); try { navigator.vibrate && navigator.vibrate([30, 60, 30]); } catch (x) { /* ок */ } }
   }
 
   // ---------- экраны ----------
@@ -120,10 +121,16 @@
   });
 
   // ---------- амуниция ----------
+  function toastGift(it) {
+    var d = document.createElement('button'); d.type = 'button'; d.className = 'gift';
+    d.innerHTML = '<img src="/img/items/' + esc(it.kind) + '.webp" alt=""><div><small>Лич дал тебе</small><b>' + esc(it.name) + '</b>' + esc(it.desc) + '</div>';
+    d.addEventListener('click', function () { d.remove(); setTab('gear'); });
+    document.body.appendChild(d); setTimeout(function () { d.classList.add('out'); setTimeout(function () { d.remove(); }, 500); }, 5200);
+  }
   function drawGear() {
     var items = (me.monster && me.monster.items) || [], gear = me.gear || [];
     $('gear-hint').textContent = !items.length ? 'У этого монстра нет вещей. Слепи нового — лич соберёт ему шесть на выбор.' : gear.length < 3 ? 'Возьми с собой три вещи. Взято: ' + gear.length + ' из 3.' : 'Три вещи с тобой. Нажми на вещь и «Использовать».';
-    $('slots').innerHTML = items.map(function (it, i) { return '<button type="button" class="slot' + (gear.indexOf(i) >= 0 ? ' on' : '') + (i === selItem ? ' sel' : '') + '" data-i="' + i + '" aria-label="' + esc(it.name) + '"><img src="/img/items/' + esc(it.kind) + '.webp" alt=""></button>'; }).join('');
+    $('slots').innerHTML = items.map(function (it, i) { return '<button type="button" class="slot' + (gear.indexOf(i) >= 0 ? ' on' : '') + (i === selItem ? ' sel' : '') + (i === me.fresh ? ' fresh' : '') + '" data-i="' + i + '" aria-label="' + esc(it.name) + '"><img src="/img/items/' + esc(it.kind) + '.webp" alt=""></button>'; }).join('');
     var it = items[selItem], has = gear.indexOf(selItem) >= 0;
     $('detail').innerHTML = it
       ? '<div class="pic"><img src="/img/items/' + esc(it.kind) + '.webp" alt=""></div><div class="txt"><h3>' + esc(it.name) + '</h3><p>' + esc(it.desc) + '</p></div><div class="hint">' + (has ? 'с собой' : 'лежит в норе') + '</div>'
