@@ -282,7 +282,10 @@ aside .mapbox{width:min(100%,26vh);margin-inline:auto}
 #hud #start{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(2.4vh + 130px)}
 #hud #giftfx{position:absolute;inset:0;pointer-events:none}
 #hud #err{position:absolute;left:17.5vw;bottom:.3vh;font-size:12px;max-width:40vw;color:#e07a5f;text-shadow:0 1px 2px #000}
-#stage.f-place>video.v,#stage.f-place>canvas.fx{transform-origin:74% 62%}
+/* «место»: лич не уезжает и не сжимается (в его ролике нарисован стол) — стоит спереди; картинка места меньше, слева, за его плечом, реплику не закрывает */
+#stage.f-place>video.v,#stage.f-place>canvas.fx{transform:none}
+#stage.f-place>canvas.fx-shade{opacity:1}
+#stage #scenecard.big{left:15%;top:9%;width:44%;transform:rotate(-1.5deg);z-index:7}
 /* интро: весь интерфейс прячется, видна только реплика, когда лич говорит */
 #app:has(#stage.intro) #hud>:not(#plate){opacity:0;pointer-events:none}
 #app:has(#stage.intro) #hud #plate{opacity:0;transform:translateY(12px);transition:opacity .6s,transform .6s}
