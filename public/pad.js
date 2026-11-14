@@ -15,6 +15,12 @@
   ];
   var DICE = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'];
 
+  NKUI.boot();
+  Array.prototype.forEach.call(document.querySelectorAll('[data-ribbon]'), function (e) { e.outerHTML = NKUI.ribbon(esc(e.dataset.ribbon)); });
+  Array.prototype.forEach.call(document.querySelectorAll('#tabs button'), function (b) { b.innerHTML = '<span class="medal">' + NKUI.icon(b.dataset.ic) + '</span>' + b.textContent; });
+  document.getElementById('talk').innerHTML = NKUI.seal('horn');
+  document.getElementById('throw').innerHTML = NKUI.seal('roll');
+
   var ws = null, room = '', pid = store.get('nk_pid'), state = null, me = null, race = null, wantRemake = false, lastAsk = null;
   var err = function (t) { $('err').textContent = t || ''; };
   var show = function (v) { ['join', 'race', 'legend', 'wait', 'play'].forEach(function (n) { $('v-' + n).hidden = n !== v; }); };
@@ -97,20 +103,21 @@
   $('remake').addEventListener('click', function () { wantRemake = true; show('race'); });
 
   // ---------- лист персонажа ----------
+  var SK_IC = ['sword', 'eye', 'star'];
   function drawSheet() {
-    var m = me.monster;
+    var m = me.monster, tr = m.traits || [];
     var img = me.pv ? ' style="background-image:url(\'/api/portrait?room=' + room + '&pid=' + encodeURIComponent(pid) + '&v=' + me.pv + '\')"' : '';
-    var tr = m.traits || [];
     $('sheet').innerHTML =
-      '<div class="head"><div class="ph"' + img + '>' + (me.pv ? '' : esc(m.name.charAt(0))) + '</div><div class="nm"><h2>' + esc(m.name) + '</h2></div></div>' +
-      '<div class="subtitle">' + esc(m.title) + '</div>' +
+      '<div class="portrait"' + img + '>' + (me.pv ? '' : esc(m.name.charAt(0))) + '</div>' +
+      NKUI.ribbon(esc(m.name)) +
+      '<div class="subtitle">' + esc(m.title) + ' · ' + esc(m.race) + '</div>' +
       '<div class="stats">' +
-        '<div class="stat"><i style="background-image:url(/img/pad/med_heart.webp)"></i><b>' + m.hp + '</b>здоровье</div>' +
-        '<div class="stat"><i style="background-image:url(/img/pad/med_shield.webp)"></i><b>' + esc(tr[0] || '—') + '</b>' + esc(m.race) + '</div>' +
-        '<div class="stat"><i style="background-image:url(/img/pad/med_eye.webp)"></i><b>' + esc(tr[1] || '—') + '</b>' + esc(tr[2] || '') + '</div>' +
+        '<div class="stat"><span class="medal">' + NKUI.icon('heart') + '</span><b>' + m.hp + '</b>здоровье</div>' +
+        '<div class="stat"><span class="medal">' + NKUI.icon('shield') + '</span><b>' + esc(tr[0] || '—') + '</b></div>' +
+        '<div class="stat"><span class="medal">' + NKUI.icon('eye') + '</span><b>' + esc(tr[1] || '—') + '</b>' + esc(tr[2] || '') + '</div>' +
       '</div>' +
-      (m.skills || []).map(function (s, i) { return '<div class="strip s' + i + '"><div class="tx"><b>' + esc(s.name) + '</b>' + esc(s.desc) + '</div><button type="button" class="die-btn" data-sk="' + i + '" aria-label="Бросить ' + esc(s.die) + '"><span>' + esc(s.die) + '</span></button></div>'; }).join('') +
-      '<div class="strip weak"><div class="tx"><b>Слабость</b>' + esc(m.weakness) + '<br><span class="hand">«' + esc(m.phrase) + '»</span></div></div>';
+      (m.skills || []).map(function (s, i) { return '<div class="paper skill"><div class="ibox">' + NKUI.icon(SK_IC[i % 3]) + '</div><div><b>' + esc(s.name) + '</b>' + esc(s.desc) + '</div><button type="button" class="die-btn" data-sk="' + i + '" aria-label="Бросить ' + esc(s.die) + '">' + NKUI.die(s.die) + '</button></div>'; }).join('') +
+      '<div class="paper skill weak"><div class="ibox">' + NKUI.icon('skull') + '</div><div><b>Слабость</b>' + esc(m.weakness) + '<br><span class="hand" style="font-size:17px">«' + esc(m.phrase) + '»</span></div></div>';
   }
   $('sheet').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-sk]'); if (!b || !me || !me.monster) return;
@@ -130,17 +137,20 @@
   function drawGear() {
     var items = (me.monster && me.monster.items) || [], gear = me.gear || [];
     $('gear-hint').textContent = !items.length ? 'У этого монстра нет вещей. Слепи нового — лич соберёт ему шесть на выбор.' : gear.length < 3 ? 'Возьми с собой три вещи. Взято: ' + gear.length + ' из 3.' : 'Три вещи с тобой. Нажми на вещь и «Использовать».';
-    $('slots').innerHTML = items.map(function (it, i) { return '<button type="button" class="slot' + (gear.indexOf(i) >= 0 ? ' on' : '') + (i === selItem ? ' sel' : '') + (i === me.fresh ? ' fresh' : '') + '" data-i="' + i + '" aria-label="' + esc(it.name) + '"><img src="/img/items/' + esc(it.kind) + '.webp" alt=""></button>'; }).join('');
+    var cells = items.map(function (it, i) { return '<button type="button" class="slot' + (gear.indexOf(i) >= 0 ? ' on' : '') + (i === selItem ? ' sel' : '') + (i === me.fresh ? ' fresh' : '') + '" data-i="' + i + '" aria-label="' + esc(it.name) + '"><img src="/img/items/' + esc(it.kind) + '.webp" alt=""></button>'; });
+    var total = Math.max(6, Math.ceil(items.length / 3) * 3);
+    for (var k = items.length; k < total; k++) cells.push('<div class="slot empty"></div>');
+    $('slots').innerHTML = cells.join('');
     var it = items[selItem], has = gear.indexOf(selItem) >= 0;
     $('detail').innerHTML = it
-      ? '<div class="pic"><img src="/img/items/' + esc(it.kind) + '.webp" alt=""></div><div class="txt"><h3>' + esc(it.name) + '</h3><p>' + esc(it.desc) + '</p></div><div class="hint">' + (has ? 'с собой' : 'лежит в норе') + '</div>'
-      : '<div class="txt" style="left:8%;right:8%;display:grid;place-items:center;text-align:center"><p>Нажми на вещь, чтобы рассмотреть.</p></div>';
+      ? '<div class="pic"><img src="/img/items/' + esc(it.kind) + '.webp" alt=""></div><div><h3>' + esc(it.name) + '</h3><p>' + esc(it.desc) + '</p><span class="tag">' + (has ? 'с собой' : 'лежит в норе') + (it.gift ? ' · от лича' : '') + '</span></div>'
+      : '<div class="none">Нажми на вещь, чтобы рассмотреть.</div>';
     $('take').disabled = !it || (!has && gear.length >= 3);
     $('take').textContent = has ? 'Выложить' : 'Взять';
     $('use').disabled = !it || !has;
     if (items.length && gear.length < 3) ping('gear');
   }
-  $('slots').addEventListener('click', function (e) { var b = e.target.closest('.slot'); if (!b) return; selItem = Number(b.dataset.i); drawGear(); });
+  $('slots').addEventListener('click', function (e) { var b = e.target.closest('button.slot'); if (!b) return; selItem = Number(b.dataset.i); drawGear(); });
   $('take').addEventListener('click', function () {
     var gear = (me.gear || []).slice(), k = gear.indexOf(selItem);
     if (k >= 0) gear.splice(k, 1); else if (gear.length < 3) gear.push(selItem);
@@ -151,9 +161,8 @@
   // ---------- кубики: печать зажал — сила копится, отпустил — бросок ----------
   DICE.forEach(function (d, i) {
     var b = document.createElement('button'); b.type = 'button'; b.className = 'd' + (d === selDie ? ' on' : ''); b.dataset.d = d;
-    b.style.backgroundImage = 'url(/img/pad/die' + i + '.webp)';
     b.setAttribute('aria-label', d);
-    b.innerHTML = '<span>' + d + '</span>';
+    b.innerHTML = NKUI.die(d);
     b.addEventListener('click', function () { pickDie(d); });
     $('dice').appendChild(b);
   });
@@ -162,7 +171,7 @@
   function chargeLoop() {
     if (!charging) return;
     var t = (performance.now() - chargeT0) / 1000 * 1.1, ph = t % 2; charge = ph < 1 ? ph : 2 - ph;
-    $('pw').style.width = (charge * 70.6).toFixed(1) + '%';
+    $('pw').style.width = 'calc(' + (charge * 100).toFixed(1) + '% - 10px)';
     requestAnimationFrame(chargeLoop);
   }
   var th = $('throw');

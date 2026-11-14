@@ -78,8 +78,8 @@
       '<circle cx="100" cy="100" r="66" fill="none" stroke="#3a0f07" stroke-width="5" opacity=".7"/>' +
       '<circle cx="100" cy="100" r="62" fill="none" stroke="#d98a62" stroke-width="1.5" opacity=".55"/>' +
       '<circle cx="100" cy="100" r="58" fill="url(#nk-hatch)" opacity=".18"/>' +
-      '<g transform="translate(58 58) scale(1.75)" color="#2a0c05" opacity=".9">' + icon(emblem).replace('<svg class="ic "', '<svg width="48" height="48"') + '</g>' +
-      '<g transform="translate(57 56) scale(1.75)" color="#e8a37e" opacity=".55">' + icon(emblem).replace('<svg class="ic "', '<svg width="48" height="48"') + '</g>' +
+      '<g transform="translate(52 52) scale(2)" color="#2a0c05">' + icon(emblem).replace('<svg class="ic "', '<svg width="48" height="48"') + '</g>' +
+      '<g transform="translate(50.5 50) scale(2)" color="#f0b08c" opacity=".7">' + icon(emblem).replace('<svg class="ic "', '<svg width="48" height="48"') + '</g>' +
       (label ? '<text x="100" y="178" text-anchor="middle" font-family="Cormorant SC, serif" font-weight="700" font-size="17" letter-spacing="2" fill="' + PAPER + '">' + label + '</text>' : '') +
       '</svg>';
   }
@@ -103,7 +103,7 @@
     });
     var t = label != null ? label : d.slice(1);
     return '<svg class="die" viewBox="0 0 100 100" aria-hidden="true"><g filter="url(#nk-rough)">' + g + '</g>' +
-      '<text x="' + D.n[0] + '" y="' + D.n[1] + '" text-anchor="middle" dominant-baseline="middle" font-family="Kurale, serif" font-size="' + (String(t).length > 1 ? 22 : 26) + '" fill="' + C + '">' + t + '</text></svg>';
+      '<text x="' + D.n[0] + '" y="' + D.n[1] + '" text-anchor="middle" dominant-baseline="middle" font-family="Kurale, serif" font-size="' + (String(t).length > 1 ? 27 : 32) + '" fill="' + C + '" stroke="#14100c" stroke-width="4" paint-order="stroke">' + t + '</text></svg>';
   }
 
   window.NKUI = { boot: boot, icon: icon, ribbon: ribbon, seal: seal, die: die };
