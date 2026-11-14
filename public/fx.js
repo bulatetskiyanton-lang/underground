@@ -50,6 +50,63 @@ export function createFx(stage) {
     parts.push({ x: eye.x + ox + rnd(-0.25, 0.25) * SOCKET_W, y: eye.y + oy - 0.012, vx: rnd(-0.01, 0.01), vy: -rnd(0.05, 0.11), life: 0, max: rnd(0.4, 0.9), r: rnd(0.0012, 0.0024) });
   }
 
+
+  // ---- огонь в глазницах на шейдере (шум + языки), режим screen поверх всего ----
+  const glc = document.createElement('canvas');
+  glc.className = 'fx fx-glow'; glc.setAttribute('aria-hidden', 'true');
+  stage.insertBefore(glc, anchor);
+  let gl = null, glP = null, glU = {};
+  try {
+    gl = glc.getContext('webgl', { alpha: false, antialias: false, premultipliedAlpha: false });
+    if (gl) {
+      const vs = 'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}';
+      const fs = `precision highp float;
+uniform vec2 uRes,uE0,uE1;uniform float uSw,uT,uI,uOn,uLean;
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float vn(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),u.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),u.x),u.y);}
+float fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*vn(p);p=mat2(.8,.6,-.6,.8)*p*2.02+17.3;a*=.5;}return s/.9375;}
+vec3 eye(vec2 fc,vec2 c,float seed){
+  vec2 p=(fc-c)/uSw;p.y=-p.y;                       // в ширинах глазницы, y вверх
+  float fl=.8+.2*vn(vec2(uT*11.+seed,2.3));
+  float h=1.25+.75*uI;
+  float y=(p.y+.22)/h;
+  float n=fbm(vec2(p.x*2.4+seed,p.y*1.7-uT*2.7));
+  float n2=fbm(vec2(p.x*5.+seed*3.,p.y*3.2-uT*4.6));
+  float x=p.x-uLean*max(p.y,0.)*.55+(n-.5)*.75*clamp(y,0.,1.);
+  float w=.40*(1.-clamp(y,0.,1.)*.82)+.02;
+  float d=abs(x)/w;
+  float body=smoothstep(1.05,.15,d)*smoothstep(-.06,.12,y)*smoothstep(1.,.25,y+(n2-.5)*.6);
+  float core=smoothstep(.75,.0,d)*smoothstep(.62,.0,y+(n2-.5)*.3)*smoothstep(-.04,.1,y);
+  vec2 q=p*vec2(1.,1.35);
+  float pit=exp(-dot(q,q)*5.5);                      // жар в самой глазнице
+  float halo=exp(-dot(p,p)*.55)*.22+exp(-dot(p,p)*.09)*.07*uI;  // отсвет на черепе
+  vec3 col=vec3(.02,.42,.36)*body*1.1+vec3(.25,1.,.85)*body*body*.9+vec3(.95,1.,.98)*core*1.2;
+  col+=(vec3(.3,1.,.86)*pit*1.1+vec3(.9,1.,.97)*pit*pit*.9)*(.75+.25*uI);
+  col+=vec3(.12,.85,.72)*halo;
+  return col*fl;
+}
+void main(){vec2 fc=vec2(gl_FragCoord.x,uRes.y-gl_FragCoord.y);
+  vec3 c=eye(fc,uE0,1.7)+eye(fc,uE1,5.3);
+  gl_FragColor=vec4(c*uOn,1.);}`;
+      const mk = (t, src) => { const sh = gl.createShader(t); gl.shaderSource(sh, src); gl.compileShader(sh); if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh)); return sh; };
+      glP = gl.createProgram(); gl.attachShader(glP, mk(gl.VERTEX_SHADER, vs)); gl.attachShader(glP, mk(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(glP);
+      if (!gl.getProgramParameter(glP, gl.LINK_STATUS)) throw new Error('link');
+      gl.useProgram(glP);
+      const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+      const l = gl.getAttribLocation(glP, 'a'); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 2, gl.FLOAT, false, 0, 0);
+      ['uRes', 'uE0', 'uE1', 'uSw', 'uT', 'uI', 'uOn', 'uLean'].forEach((n) => { glU[n] = gl.getUniformLocation(glP, n); });
+    }
+  } catch (e) { gl = null; glc.remove(); }
+  function glEyes(t, on, I, ox, oy) {
+    if (glc.width !== W || glc.height !== H) { glc.width = W; glc.height = H; gl.viewport(0, 0, W, H); }
+    gl.uniform2f(glU.uRes, W, H);
+    gl.uniform2f(glU.uE0, (EYES[0].x + ox) * W, (EYES[0].y + oy) * H + SOCKET_W * W * 0.06);
+    gl.uniform2f(glU.uE1, (EYES[1].x + ox) * W, (EYES[1].y + oy) * H + SOCKET_W * W * 0.06);
+    gl.uniform1f(glU.uSw, SOCKET_W * W); gl.uniform1f(glU.uT, t); gl.uniform1f(glU.uI, I); gl.uniform1f(glU.uOn, on);
+    gl.uniform1f(glU.uLean, 0.25 * Math.sin(t * 2.3) + sway * 0.4);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
   function drawShade() {
     sx.clearRect(0, 0, W, H);
     const k = 1 - light;                                               // чем слабее свеча, тем темнее всё вокруг
@@ -91,9 +148,11 @@ export function createFx(stage) {
     gx.fillStyle = tb; gx.beginPath(); gx.arc(0, 0, W * 0.5, 0, Math.PI * 2); gx.fill(); gx.restore();
 
     // огонь в глазницах: свет заполняет глазницу, язык пламени, отсвет на кости
+    if (gl) glEyes(now / 1000, eyesOn, eyeI, ox, oy);
     if (eyesOn > 0.01) {
       const t = now / 1000;
       EYES.forEach((e, i) => {
+        if (gl) { if (!reduce) spark(e, eyeI * eyesOn, ox, oy); return; }
         const ex = (e.x + ox) * W, ey = (e.y + oy) * H, sw = SOCKET_W * W, a = eyesOn;
         const fl = 0.85 + 0.15 * Math.sin(t * 17 + i * 2.1) + 0.1 * Math.sin(t * 31 + i);
         // отсвет на черепе вокруг
@@ -136,14 +195,16 @@ export function createFx(stage) {
   let eyesOn = 1, eyeI = 1;
   return {
     loadTrack,
+    get light() { return light; },
+    hasTrack(n) { return !!tracks[n]; },
     // s: { active: 'idle'|'talk', time, speaking, level, listening, thinking, blink, mood, enabled }
     step(now, dt, s) {
       resize();
       if (!W) return;
       candle(now, dt);
-      let ox = 0, oy = 0;
+      let ox = 0, oy = 0, seen = 1;
       const tr = tracks[s.active];
-      if (tr && tr.dx && tr.dx.length) { const i = Math.min(tr.dx.length - 1, Math.max(0, Math.floor((s.time || 0) * tr.fps))); ox = tr.dx[i]; oy = tr.dy[i]; }
+      if (tr && tr.dx && tr.dx.length) { const i = Math.min(tr.dx.length - 1, Math.max(0, Math.floor((s.time || 0) * tr.fps))); ox = tr.dx[i]; oy = tr.dy[i]; if (tr.c) seen = tr.c[i]; }
       let wantI = 1;
       if (s.thinking) wantI = 0.55;
       if (s.listening) wantI = 1.45;
@@ -151,7 +212,7 @@ export function createFx(stage) {
       if (s.mood === 'злится') wantI *= 1.35;
       if (s.mood === 'шепчет') wantI *= 0.7;
       eyeI = lerp(eyeI, wantI, Math.min(1, dt * 8));
-      eyesOn = lerp(eyesOn, s.blink ? 0 : 1, Math.min(1, dt * (s.blink ? 30 : 9)));
+      eyesOn = lerp(eyesOn, s.blink || seen < 0.5 ? 0 : 1, Math.min(1, dt * (s.blink ? 30 : 12)));
       drawShade();
       drawGlow(now, s.enabled ? eyesOn : 0, eyeI, ox, oy, dt);
     },

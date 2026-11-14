@@ -49,14 +49,14 @@ const err = (t) => { $('err').textContent = t || ''; };
 
 function onMsg(m) {
   if (m.t === 'state') { state = m; renderState(); if (m.lich && m.lich.id > lastLichId && !speaking) { lastLichId = m.lich.id; showLine(m.lich.text, false); showAsk(m.lich.roll); } }
-  else if (m.t === 'lich') { lastLichId = m.id; mood = m.mood || ''; $('mood').textContent = m.mood || 'говорит'; showAsk(m.roll); speak(m.text); }
-  else if (m.t === 'think') { thinking = !!m.on; if (thinking) $('mood').textContent = 'думает'; }
-  else if (m.t === 'talking') { if (m.on) { listening.add(m.pid); stopSpeak(); } else listening.delete(m.pid); }
+  else if (m.t === 'lich') { lastLichId = m.id; mood = m.mood || ''; stopGesture(['think', 'listen']); if (m.roll) gesture('dice'); else if (m.mood === 'смеётся') gesture('laugh'); else if (m.mood === 'злится') gesture('angry'); else if ((state.paths || []).length) gesture('point'); $('mood').textContent = m.mood || 'говорит'; showAsk(m.roll); speak(m.text); }
+  else if (m.t === 'think') { thinking = !!m.on; if (thinking) { $('mood').textContent = 'думает'; gesture('think'); } }
+  else if (m.t === 'talking') { if (m.on) { listening.add(m.pid); stopSpeak(); gesture('listen'); } else { listening.delete(m.pid); if (!listening.size) stopGesture(['listen']); } }
   else if (m.t === 'said') { addLog(m.name, m.text); }
   else if (m.t === 'rolled') { addLog(m.name, 'бросил ' + m.die + ': ' + m.n); }
   else if (m.t === 'do_roll') doRoll(m.pid, m.die, m.power);
-  else if (m.t === 'gift') showGift(m);
-  else if (m.t === 'scene') showScene(m, true);
+  else if (m.t === 'gift') { gesture('give'); showGift(m); }
+  else if (m.t === 'scene') { gesture('map'); showScene(m, true); }
   else if (m.t === 'error') err(m.text);
 }
 
@@ -186,9 +186,29 @@ const fx = createFx($('stage'));
 fx.loadTrack('idle', '/video/lich_idle.track.json');
 fx.loadTrack('talk', '/video/lich_talk.track.json');
 function startVideo() {
-  Promise.all([$('v-cave').play(), vIdle.play(), vTalk.play()]).then(() => { videoOk = true; $('stage').classList.add('video'); }).catch(() => { videoOk = false; });
+  Promise.all([$('v-cave').play(), vIdle.play(), vTalk.play()]).then(() => { videoOk = true; $('stage').classList.add('video'); loadGestures(); }).catch(() => { videoOk = false; });
 }
-function setVideo(talk) { vTalk.classList.toggle('on', talk); vIdle.classList.toggle('on', !talk); }
+function setVideo(talk) { const g = gest && gestOn; vGest.classList.toggle('on', !!g); vTalk.classList.toggle('on', !g && talk); vIdle.classList.toggle('on', !g && !talk); }
+
+// жесты: отдельные ролики на прозрачном фоне, начинаются и кончаются позой покоя
+const vGest = $('v-gest'), GEST = ['map', 'point', 'dice', 'give', 'laugh', 'angry', 'think', 'listen'], gestUrl = {};
+let gest = '', gestOn = false;
+function loadGestures() {
+  GEST.forEach((g) => {
+    fx.loadTrack('g_' + g, '/video/g_' + g + '.track.json');
+    fetch('/video/g_' + g + '.webm').then((r) => (r.ok ? r.blob() : null)).then((b) => { if (b) gestUrl[g] = URL.createObjectURL(b); }).catch(() => {});
+  });
+}
+function gesture(name) {
+  if (!videoOk || !gestUrl[name] || gest === name) return;
+  gest = name; gestOn = false;
+  vGest.src = gestUrl[name];
+  vGest.play().catch(() => { gest = ''; });
+}
+function stopGesture(only) { if (gest && (!only || only.includes(gest))) { gest = ''; gestOn = false; vGest.pause(); } }
+vGest.addEventListener('playing', () => { if (gest) gestOn = true; });
+vGest.addEventListener('ended', () => { gest = ''; gestOn = false; });
+vGest.addEventListener('error', () => { gest = ''; gestOn = false; });
 
 let lastT = 0;
 function frame(now) {
@@ -212,8 +232,10 @@ function frame(now) {
   const talkOn = speaking && now < talkHold;
   if (videoOk) {
     setVideo(talkOn);
-    const v = talkOn ? vTalk : vIdle;
-    fx.step(now, dt, { enabled: true, active: talkOn ? 'talk' : 'idle', time: v.currentTime, speaking, level, listening: listening.size > 0, thinking, blink: !speaking && now < blinkUntil, mood: speaking ? mood : '' });
+    const gOn = gest && gestOn;
+    const v = gOn ? vGest : talkOn ? vTalk : vIdle;
+    $('v-cave').style.filter = `brightness(${(0.62 + 0.5 * fx.light).toFixed(3)})`;
+    fx.step(now, dt, { enabled: true, active: gOn ? 'g_' + gest : talkOn ? 'talk' : 'idle', time: v.currentTime, speaking, level, listening: listening.size > 0, thinking, blink: !speaking && now < blinkUntil, mood: speaking ? mood : '' });
   }
   $('stage').classList.toggle('hear', !speaking && listening.size > 0);
   $('stage').classList.toggle('muse', !speaking && !listening.size && thinking);
