@@ -10,6 +10,7 @@
   --hand:"Neucha", "Comic Sans MS", cursive;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0;height:100%;background:var(--ground);color:var(--ink);font-family:var(--text);font-size:18px;line-height:1.35;-webkit-text-size-adjust:100%}
 h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 button,input,textarea{font:inherit;color:inherit}
@@ -19,8 +20,7 @@ button,input,textarea{font:inherit;color:inherit}
 /* бумажная плашка с двойной рамкой и штрих-тенью */
 .plate{position:relative;background:var(--paper-2);color:var(--ink-dark);border:4px solid var(--ink-dark);outline:1px solid var(--paper);padding:4px}
 .plate>.in{border:1px solid var(--ink-dark);padding:12px 16px}
-.shadow{position:relative;z-index:0}
-.shadow::after{content:"";position:absolute;left:8px;top:8px;right:-8px;bottom:-8px;z-index:-1;background:repeating-linear-gradient(135deg,var(--hatch) 0 1px,transparent 1px 5px)}
+.shadow{box-shadow:8px 8px 0 0 var(--hatch)}
 
 .btn{position:relative;z-index:0;display:inline-block;font-family:var(--label);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:16px;
   color:var(--ink-dark);background:var(--paper-2);border:2px solid var(--ink-dark);border-radius:2px;padding:14px 20px;cursor:pointer;text-align:center;
