@@ -97,24 +97,24 @@ export function createFx(stage) {
         const ex = (e.x + ox) * W, ey = (e.y + oy) * H, sw = SOCKET_W * W, a = eyesOn;
         const fl = 0.85 + 0.15 * Math.sin(t * 17 + i * 2.1) + 0.1 * Math.sin(t * 31 + i);
         // отсвет на черепе вокруг
-        const spill = gx.createRadialGradient(ex, ey, sw * 0.3, ex, ey, sw * 2.6);
-        spill.addColorStop(0, `rgba(40,200,170,${0.20 * a * eyeI * fl})`); spill.addColorStop(1, 'rgba(40,200,170,0)');
-        gx.fillStyle = spill; gx.fillRect(ex - sw * 3, ey - sw * 3, sw * 6, sw * 6);
+        const spill = gx.createRadialGradient(ex, ey, sw * 0.3, ex, ey, sw * 4.2);
+        spill.addColorStop(0, `rgba(60,230,195,${Math.min(1, 0.42 * a * (0.6 + eyeI) * fl)})`); spill.addColorStop(0.4, `rgba(40,200,170,${0.16 * a * fl})`); spill.addColorStop(1, 'rgba(40,200,170,0)');
+        gx.fillStyle = spill; gx.fillRect(ex - sw * 4.5, ey - sw * 4.5, sw * 9, sw * 9);
         // свечение внутри глазницы (эллипс по форме глазницы)
         gx.save(); gx.translate(ex, ey); gx.scale(1, 0.72);
         const inner = gx.createRadialGradient(0, sw * 0.1, 0, 0, 0, sw * 0.62);
-        inner.addColorStop(0, `rgba(170,255,235,${0.85 * a * fl})`);
-        inner.addColorStop(0.35, `rgba(50,215,185,${0.55 * a * fl})`);
-        inner.addColorStop(0.8, `rgba(15,120,105,${0.22 * a})`);
+        inner.addColorStop(0, `rgba(235,255,250,${Math.min(1, 1.0 * a * fl)})`);
+        inner.addColorStop(0.35, `rgba(80,245,210,${Math.min(1, 0.85 * a * fl)})`);
+        inner.addColorStop(0.8, `rgba(20,150,130,${0.4 * a})`);
         inner.addColorStop(1, 'rgba(10,90,80,0)');
         gx.fillStyle = inner; gx.beginPath(); gx.arc(0, 0, sw * 0.62, 0, Math.PI * 2); gx.fill(); gx.restore();
         // языки пламени
-        const hgt = sw * (0.75 + 0.55 * eyeI) * (0.85 + 0.25 * Math.sin(t * 9 + i * 1.7) * Math.sin(t * 5.3 + i));
+        const hgt = sw * (0.95 + 0.65 * eyeI) * (0.85 + 0.25 * Math.sin(t * 9 + i * 1.7) * Math.sin(t * 5.3 + i));
         const lean = sw * 0.16 * Math.sin(t * 6.1 + i * 2.4) + sway * sw * 0.1;
         const by = ey + sw * 0.08;
-        tongue(ex, by, sw * 0.30, hgt, lean, `rgba(20,150,130,${0.45 * a})`);
-        tongue(ex, by, sw * 0.21, hgt * 0.78, lean * 0.7, `rgba(70,235,205,${0.6 * a})`);
-        tongue(ex, by, sw * 0.11, hgt * 0.5, lean * 0.4, `rgba(225,255,248,${0.8 * a})`);
+        tongue(ex, by, sw * 0.30, hgt, lean, `rgba(25,175,150,${0.65 * a})`);
+        tongue(ex, by, sw * 0.21, hgt * 0.78, lean * 0.7, `rgba(80,245,215,${0.85 * a})`);
+        tongue(ex, by, sw * 0.11, hgt * 0.5, lean * 0.4, `rgba(240,255,252,${1 * a})`);
         if (!reduce) spark(e, eyeI * a, ox, oy);
       });
     }
