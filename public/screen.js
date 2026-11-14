@@ -188,6 +188,12 @@ function showScene(m, fresh) {
 }
 $('scenecard').addEventListener('click', () => $('scenecard').classList.toggle('big'));
 function drawMap() {
+  if (state.map && window.NKMap) {
+    const ps = (state.players || []).filter((p) => p.monster).map((p) => ({ name: p.monster.name, img: p.pv ? `/api/portrait?room=${room}&pid=${encodeURIComponent(p.pid)}&v=${p.pv}` : '' }));
+    const svg = $('map'); svg.setAttribute('viewBox', `0 0 ${NKMap.size} ${NKMap.size}`); svg.classList.add('rooms');
+    svg.innerHTML = NKMap.draw(state.map, { players: ps });
+    return;
+  }
   const P = state.places || [], E = state.edges || [], cur = state.cur || 0, paths = state.paths || [];
   // раскладка: тропа змейкой сверху вниз, как разрез подземелья
   const pos = P.map((_, i) => { const row = Math.floor(i / 3), col = i % 3; const x = 34 + (row % 2 ? 2 - col : col) * 66 + (i % 2 ? 6 : -4); return [x, 26 + row * 44 + (col === 1 ? 8 : 0)]; });

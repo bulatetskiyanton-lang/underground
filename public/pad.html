@@ -190,6 +190,15 @@ body.play{padding-bottom:calc(118px + env(safe-area-inset-bottom));padding-top:c
 #seal-pop .stamp{position:absolute;right:-4%;bottom:-6%;width:34%;aspect-ratio:1;transform:rotate(-14deg);animation:stamp .5s cubic-bezier(.3,1.6,.5,1) .8s both}
 #seal-pop .stamp .seal{width:100%;display:block;filter:drop-shadow(3px 5px 0 rgba(0,0,0,.5))}
 @keyframes stamp{0%{transform:rotate(-30deg) scale(3);opacity:0}70%{opacity:1}100%{transform:rotate(-14deg) scale(1);opacity:1}}
+#mapcard{padding:10px 12px;margin:10px 0}#rmap{display:block;width:min(100%,330px);margin:6px auto;touch-action:manipulation}#rmap .room.can{cursor:pointer}#roominfo{text-align:center;font-size:15px;min-height:1.3em;margin:2px 0 8px}#roomacts{justify-content:center;gap:8px}
+#map.rooms text,#rmap text{font-family:var(--hand,inherit);fill:#14100c}
+#map.rooms .nm,#rmap .nm{font-size:8.6px;font-weight:700}
+#map.rooms .q,#rmap .q{font-size:24px;fill:#f6ecd3;stroke:#14100c;stroke-width:.8px;paint-order:stroke}
+#map.rooms .hint,#rmap .hint{font-size:6.4px;opacity:.6}
+#map.rooms .tk,#rmap .tk{font-size:9px;fill:#f6ecd3;font-weight:700}
+#map.rooms .ic.taken,#rmap .ic.taken{opacity:.35}
+#map.rooms .room.on>rect,#rmap .room.on>rect{animation:nkroom 1.6s ease-in-out infinite}
+@keyframes nkroom{50%{stroke-width:5}}
 </style>
 </head>
 <body>
@@ -275,6 +284,7 @@ body.play{padding-bottom:calc(118px + env(safe-area-inset-bottom));padding-top:c
       <div id="heard"></div>
       <button class="sealbtn" id="talk" type="button" aria-label="Зажми и говори"></button>
       <div class="seal-label">Зажми печать и говори. Отпустил — лич услышал.</div>
+      <div id="mapcard" class="paper" hidden><div class="label">Карта · тапни соседнюю комнату</div><svg id="rmap" aria-label="Карта"></svg><div id="roominfo"></div><div class="row" id="roomacts"><button type="button" class="btn" id="b-search">Осмотреть</button><button type="button" class="btn" id="b-loot" hidden>Забрать</button></div></div>
       <div id="paths" class="row"></div>
       <div id="goal" class="paper" hidden></div>
       <div id="quests" class="paper" hidden></div>
@@ -291,6 +301,7 @@ body.play{padding-bottom:calc(118px + env(safe-area-inset-bottom));padding-top:c
 </div></nav>
 <script src="/ui.js"></script>
 <script src="/quiz.js"></script>
+<script src="/nkmap.js"></script>
 <script src="/pad.js"></script>
 </body>
 </html>

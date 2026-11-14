@@ -133,6 +133,16 @@ aside>*{position:relative}
 .card .hp{color:#7a2a12}
 .mapbox{position:relative;width:100%;aspect-ratio:1;background:url(/img/ui/parchment.webp) center/100% 100% no-repeat;filter:drop-shadow(4px 6px 0 rgba(0,0,0,.55))}
 #map{position:absolute;left:12%;top:27%;width:76%;height:50%;aspect-ratio:auto;background:none;border:0;box-shadow:none}
+#map.rooms{left:13%;top:15%;width:74%;height:70%}
+#map.rooms text,#rmap text{font-family:var(--hand,inherit);fill:#14100c}
+#map.rooms .nm,#rmap .nm{font-size:8.6px;font-weight:700}
+#map.rooms .q,#rmap .q{font-size:24px;fill:#f6ecd3;stroke:#14100c;stroke-width:.8px;paint-order:stroke}
+#map.rooms .hint,#rmap .hint{font-size:6.4px;opacity:.6}
+#map.rooms .tk,#rmap .tk{font-size:9px;fill:#f6ecd3;font-weight:700}
+#map.rooms .ic.taken,#rmap .ic.taken{opacity:.35}
+#map.rooms .room.on>rect,#rmap .room.on>rect{animation:nkroom 1.6s ease-in-out infinite}
+@keyframes nkroom{50%{stroke-width:5}}
+
 #log{font-size:14px;line-height:1.3;color:#e6d8b6;background:rgba(8,5,3,.55);border:1px solid #6a5c47;padding:8px 10px;min-height:0;overflow:hidden}
 .rack{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 .rack button{font-size:clamp(12px,1vw,16px);padding:7px 0;background:var(--paper-2);color:var(--ink-dark);border:2px solid var(--ink-dark);box-shadow:2px 3px 0 rgba(0,0,0,.6)}
@@ -306,6 +316,7 @@ aside .mapbox{width:min(100%,26vh);margin-inline:auto}
 <script src="/vendor/cannon.min.js"></script>
 <script src="/dice.js"></script>
 <script src="/quiz.js"></script>
+<script src="/nkmap.js"></script>
 <script type="module" src="/screen.js"></script>
 </body>
 </html>

@@ -302,9 +302,25 @@
   function drawPaths() {
     var qs = state.quests || []; $('quests').hidden = !qs.length; $('quests').innerHTML = qs.length ? '<small>Задания</small>' + qs.map(function (q) { return '<div class="' + (q.done ? 'done' : '') + '"><i></i><span>' + esc(q.text) + '</span></div>'; }).join('') : '';
     $('goal').hidden = !state.goal; $('goal').innerHTML = state.goal ? '<small>Что делать</small>' + esc(state.goal) : '';
-    var ps = state.paths || [];
+    var mp = state.map; $('mapcard').hidden = !mp || !window.NKMap;
+    if (mp && window.NKMap) {
+      var pls = (state.players || []).filter(function (p) { return p.monster; }).map(function (p) { return { name: p.monster.name, img: p.pv ? '/api/portrait?room=' + room + '&pid=' + encodeURIComponent(p.pid) + '&v=' + p.pv : '' }; });
+      var sv = $('rmap'); sv.setAttribute('viewBox', '0 0 ' + NKMap.size + ' ' + NKMap.size); sv.innerHTML = NKMap.draw(mp, { players: pls, tap: true });
+      var r = mp.rooms[mp.at] || {}, f = r.find;
+      $('roominfo').innerHTML = '<b>' + esc(r.name || '') + '</b>' + (r.state === 'seen' ? ' — ' + esc(f ? f.what + (f.taken ? ' (забрано)' : '') : 'пусто') : '');
+      $('b-search').hidden = r.state === 'seen'; $('b-loot').hidden = !(f && f.loot);
+    }
+    var ps = mp ? [] : state.paths || [];
     $('paths').innerHTML = ps.length ? '<div class="label" style="text-align:center">Куда идём</div>' + ps.map(function (t, i) { return '<button type="button" class="btn" data-p="' + i + '">' + esc(t) + '</button>'; }).join('') : '';
   }
+  $('rmap').addEventListener('click', function (e) {
+    var g = e.target.closest('.room.can'); if (!g || !state.map) return;
+    var id = Number(g.dataset.room), st = NKMap.neighbors(state.map)[id];
+    $('heard').textContent = st === 'locked' ? 'Ты: дёргаю запертую дверь' : 'Ты: идём туда';
+    send({ t: 'go', room: id });
+  });
+  $('b-search').addEventListener('click', function () { $('heard').textContent = 'Ты: осматриваю комнату'; send({ t: 'search' }); });
+  $('b-loot').addEventListener('click', function () { $('heard').textContent = 'Ты: забираю'; send({ t: 'loot' }); });
   $('paths').addEventListener('click', function (e) { var b = e.target.closest('button[data-p]'); if (!b) return; var t = (state.paths || [])[Number(b.dataset.p)]; if (!t) return; $('heard').textContent = 'Ты: идём — ' + t; send({ t: 'say', text: 'Идём сюда: ' + t + '.' }); $('paths').innerHTML = ''; });
 
   // ---------- разговор ----------
