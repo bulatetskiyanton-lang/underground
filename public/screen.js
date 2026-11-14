@@ -63,6 +63,7 @@ function onMsg(m) {
 // ---------- монстры и комната ----------
 function renderState() {
   $('scene').textContent = state.scene || 'Логово лича';
+  $('goal').textContent = state.goal ? 'Цель: ' + state.goal : '';
   drawMap();
   const cp = (state.places || [])[state.cur];
   if (cp && cp.v && sceneShown !== state.cur + ':' + cp.v) showScene({ i: state.cur, name: cp.name, v: cp.v }, false);
@@ -102,7 +103,7 @@ function drawMap() {
   const P = state.places || [], E = state.edges || [], cur = state.cur || 0, paths = state.paths || [];
   // раскладка: тропа змейкой сверху вниз, как разрез подземелья
   const pos = P.map((_, i) => { const row = Math.floor(i / 3), col = i % 3; const x = 34 + (row % 2 ? 2 - col : col) * 66 + (i % 2 ? 6 : -4); return [x, 26 + row * 44 + (col === 1 ? 8 : 0)]; });
-  let h = '<defs><pattern id="mh" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="#14100c" stroke-width=".6" opacity=".35"/></pattern></defs><rect x="6" y="6" width="188" height="198" fill="url(#mh)" opacity=".5"/>';
+  let h = '<defs><pattern id="mh" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="#14100c" stroke-width=".6" opacity=".35"/></pattern></defs>';
   E.forEach(([a, b]) => { if (pos[a] && pos[b]) { const [x1, y1] = pos[a], [x2, y2] = pos[b]; h += `<path d="M${x1} ${y1}Q${(x1 + x2) / 2 + 8} ${(y1 + y2) / 2 - 8} ${x2} ${y2}" fill="none" stroke="#f6ecd3" stroke-width="9" stroke-linecap="round"/><path d="M${x1} ${y1}Q${(x1 + x2) / 2 + 8} ${(y1 + y2) / 2 - 8} ${x2} ${y2}" fill="none" stroke="#14100c" stroke-width="1.6" stroke-dasharray="4 3"/>`; } });
   if (pos[cur]) paths.forEach((t, k) => { const [x, y] = pos[cur], a = (-0.5 + k * 0.5) * 1.1 + 0.6, x2 = Math.max(20, Math.min(180, x + Math.cos(a) * 34)), y2 = Math.min(198, y + Math.sin(a) * 30 + 8); h += `<path d="M${x} ${y}L${x2} ${y2}" stroke="#964f05" stroke-width="1.4" stroke-dasharray="2 3"/><circle cx="${x2}" cy="${y2}" r="4" fill="#f6ecd3" stroke="#964f05" stroke-width="1.4"/><text x="${x2}" y="${y2 + 12}" text-anchor="middle" style="fill:#964f05">${esc(t)}?</text>`; });
   P.forEach((p, i) => { const [x, y] = pos[i], on = i === cur; h += `<circle cx="${x}" cy="${y}" r="${on ? 11 : 8}" fill="#f6ecd3" stroke="#14100c" stroke-width="2"/><circle cx="${x}" cy="${y}" r="${on ? 6 : 3.5}" fill="${on ? '#0f8f80' : '#14100c'}" ${on ? 'class="cur"' : ''}/><text x="${x}" y="${y - 13}" text-anchor="middle">${esc(p.name)}</text>`; });
@@ -288,7 +289,7 @@ function frame(now) {
     if (v.playbackRate !== rate) v.playbackRate = rate;
     // начал или кончил говорить — следующим ставим ролик под новое состояние
     if (!gestQ.length && !CLIPS.gest.includes(nextClip) && CLIPS.talk.includes(nextClip) !== !!speaking) cue();
-    $('v-cave').style.filter = `brightness(${(0.62 + 0.5 * fx.light).toFixed(3)})`;
+    { const L = fx.light, fl = 0.94 + 0.06 * Math.sin(now / 53) * Math.sin(now / 131); $('v-cave').style.filter = `brightness(${((0.34 + 0.78 * L) * fl).toFixed(3)}) sepia(${(0.25 * (1 - L)).toFixed(2)})`; vv[cur].style.filter = `brightness(${((0.6 + 0.45 * L) * (0.97 + 0.03 * Math.sin(now / 53))).toFixed(3)})`; }
     fx.step(now, dt, { enabled: true, active: curClip, time: v.currentTime, speaking, level, listening: listening.size > 0, thinking, blink: !speaking && now < blinkUntil, mood: speaking ? mood : '' });
   }
   $('stage').classList.toggle('hear', !speaking && listening.size > 0);

@@ -187,6 +187,7 @@
   th.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
   function drawPaths() {
+    $('goal').hidden = !state.goal; $('goal').innerHTML = state.goal ? '<small>Что делать</small>' + esc(state.goal) : '';
     var ps = state.paths || [];
     $('paths').innerHTML = ps.length ? '<div class="label" style="text-align:center">Куда идём</div>' + ps.map(function (t, i) { return '<button type="button" class="btn" data-p="' + i + '">' + esc(t) + '</button>'; }).join('') : '';
   }

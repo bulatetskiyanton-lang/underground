@@ -30,6 +30,7 @@ const LICH_PROMPT = `Ты — старый лич на пенсии, масте�
 - Когда приходит результат броска: 1 — позорный провал, максимум — триумф, середина — получилось криво. Опиши последствия сразу.
 - Не решай за игроков, что делают их монстры.
 - Когда монстры приходят в новое место или происходит что-то, что стоит показать, заполни place: название места и описание картинки по-английски. Картинка появится на экране, а место — на карте. Не чаще раза в два-три хода.
+- У монстров всегда есть цель: заполняй goal — что им сейчас надо сделать. Если случилось важное (нашли, потеряли, победили, сбежали, узнали), запиши одной фразой в note — это летопись, по ней ты помнишь весь путь.
 - Когда есть развилка, заполни paths: два-три коротких варианта, куда пойти дальше. Они появятся на карте и у игроков кнопками.
 - Если по сюжету монстр что-то находит, получает или крадёт (осколок, ключ, зелье, кость, монету) — заполни give: кому и что. Вещь сразу появится у него в амуниции. Дари редко и со смыслом, не чаще раза в несколько ходов.
 - Говори на том языке, на котором говорят игроки (русский или украинский).`;
@@ -49,6 +50,8 @@ const LICH_TOOL = {
         properties: { name: { type: 'string', description: 'Название места, 1-3 слова' }, look_en: { type: 'string', description: 'English: what the place looks like, one sentence, no characters names' } },
         required: ['name', 'look_en'],
       },
+      goal: { type: 'string', description: 'Текущая цель монстров одной короткой фразой, до 60 знаков. Заполняй всегда.' },
+      note: { type: 'string', description: 'Запись в летопись: что важного только что случилось, одна фраза. Только если случилось.' },
       paths: { type: 'array', items: { type: 'string' }, description: 'До трёх вариантов, куда идти дальше, по 1-3 слова' },
       give: {
         type: 'object',
@@ -171,6 +174,8 @@ export class Room {
     this.edges = [];
     this.cur = 0;
     this.paths = [];
+    this.goal = '';
+    this.notes = [];
     this.lastLich = null;
     this.chain = Promise.resolve();
     this.seq = 0;
@@ -181,6 +186,7 @@ export class Room {
           this.players = new Map(s.players.map((p) => [p.pid, { ...p, online: false, making: false }]));
           this.log = s.log || []; this.started = !!s.started; this.scene = s.scene || this.scene; this.lastLich = s.lastLich || null;
           if (s.places?.length) { this.places = s.places; this.edges = s.edges || []; this.cur = s.cur || 0; this.paths = s.paths || []; }
+          this.goal = s.goal || ''; this.notes = s.notes || [];
         }
       } catch (e) { console.error('restore', e); }
     });
@@ -190,7 +196,7 @@ export class Room {
     if (this.saveTimer) return;
     this.saveTimer = setTimeout(async () => {
       this.saveTimer = null;
-      try { await this.ctx.storage.put('snap', { players: [...this.players.values()], log: this.log.slice(-40), started: this.started, scene: this.scene, lastLich: this.lastLich, places: this.places, edges: this.edges, cur: this.cur, paths: this.paths }); } catch (e) { console.error('save', e); }
+      try { await this.ctx.storage.put('snap', { players: [...this.players.values()], log: this.log.slice(-40), started: this.started, scene: this.scene, lastLich: this.lastLich, places: this.places, edges: this.edges, cur: this.cur, paths: this.paths, goal: this.goal, notes: this.notes.slice(-6), goal: this.goal, notes: this.notes }); } catch (e) { console.error('save', e); }
     }, 400);
   }
 
@@ -235,7 +241,7 @@ export class Room {
 
   view() {
     return {
-      t: 'state', started: this.started, scene: this.scene, lich: this.lastLich, places: this.places, edges: this.edges, cur: this.cur, paths: this.paths,
+      t: 'state', started: this.started, scene: this.scene, lich: this.lastLich, places: this.places, edges: this.edges, cur: this.cur, paths: this.paths, goal: this.goal, notes: this.notes.slice(-6),
       players: [...this.players.values()].map((p) => ({ pid: p.pid, name: p.name, race: p.race, monster: p.monster, gear: p.gear || [], fresh: p.fresh ?? -1, making: !!p.making, online: !!p.online, pv: p.pv || 0 })),
       log: this.log.slice(-8),
     };
@@ -261,7 +267,7 @@ export class Room {
     if (c.role === 'screen') {
       if (m.t === 'start') { this.started = true; this.state(); this.turn({ kind: 'start' }); }
       else if (m.t === 'rolled') this.rolled(m.pid, m.die, m.n);
-      else if (m.t === 'reset') { this.players.clear(); this.log = []; this.started = false; this.lastLich = null; this.scene = 'Логово лича'; this.places = [{ name: 'Логово лича', v: 0 }]; this.edges = []; this.cur = 0; this.paths = []; this.state(); }
+      else if (m.t === 'reset') { this.players.clear(); this.log = []; this.started = false; this.lastLich = null; this.scene = 'Логово лича'; this.places = [{ name: 'Логово лича', v: 0 }]; this.edges = []; this.cur = 0; this.paths = []; this.goal = ''; this.notes = []; this.state(); }
       return;
     }
     const p = this.players.get(c.pid);
@@ -399,7 +405,7 @@ export class Room {
       : `${ev.who} говорит: «${ev.text}». Ответь как мастер.`;
     const r = await claude(this.env, {
       system: LICH_PROMPT, tool: LICH_TOOL, maxTokens: 350, timeout: 15000,
-      user: `Монстры за столом:\n${JSON.stringify(monsters)}\n\nГде они сейчас: ${this.scene}\n\nКарта: уже известные места — ${this.places.map((x) => x.name).join(', ')}\n\nПоследние события:\n${this.log.slice(-14).map((l) => `${l.who}: ${l.text}`).join('\n') || 'пока ничего'}\n\nСейчас: ${what}`,
+      user: `Монстры за столом:\n${JSON.stringify(monsters)}\n\nГде они сейчас: ${this.scene}\n\nКарта: уже известные места — ${this.places.map((x) => x.name).join(', ')}\n\nЦель сейчас: ${this.goal || 'ещё нет, придумай'}\n\nЛетопись (что уже было):\n${this.notes.slice(-20).join('\n') || 'пока пусто'}\n\nПоследние события:\n${this.log.slice(-14).map((l) => `${l.who}: ${l.text}`).join('\n') || 'пока ничего'}\n\nСейчас: ${what}`,
     });
     this.cast({ t: 'think', on: false });
     let say, mood = 'ворчит', roll = null;
@@ -417,6 +423,8 @@ export class Room {
     }
     if (r.out?.give) this.give(r.out.give);
     if (r.out) {
+      if (r.out.goal) this.goal = clean(r.out.goal, 80);
+      if (r.out.note) { this.notes.push(clean(r.out.note, 140)); if (this.notes.length > 40) this.notes = this.notes.slice(-40); }
       this.paths = (Array.isArray(r.out.paths) ? r.out.paths : []).map((x) => clean(x, 30)).filter(Boolean).slice(0, 3);
       if (r.out.place?.name) this.goto(r.out.place);
     }
