@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Нижний Край — пульт</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kurale&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=Cormorant+SC:wght@700&family=Neucha&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+body{padding:16px max(16px,env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.w{max-width:520px;margin:0 auto;display:grid;gap:16px}
+h1{font-size:34px;color:var(--paper)}
+h2{font-size:26px;color:var(--paper)}
+.view{display:grid;gap:14px}
+.view[hidden]{display:none}
+.row{display:grid;gap:8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.race{padding:14px 10px;font-size:17px}
+.race small,.leg small{display:block;font-family:var(--text);text-transform:none;letter-spacing:0;font-weight:400;font-size:14px;color:#5c4f3d;margin-top:3px;line-height:1.2}
+.leg{text-align:left;font-family:var(--text);text-transform:none;letter-spacing:0;font-weight:400;font-size:17px;line-height:1.25}
+.muted{color:var(--ink-soft);font-size:15px}
+#err{color:var(--blood);font-size:15px;min-height:18px}
+
+.sheet .in{display:grid;gap:8px}
+.sheet .top{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:center}
+.sheet .ph{width:96px;height:96px;background:#d9cba9 center/cover;border:2px solid var(--ink-dark);display:grid;place-items:center;font-family:var(--display);font-size:44px;color:#8a7b62}
+.sheet h2{color:var(--ink-dark);font-size:28px;line-height:1}
+.sheet .t{font-size:15px;color:#5c4f3d}
+.sheet .hp{font-family:var(--label);font-weight:700;letter-spacing:.06em;color:#a8281c;font-size:14px}
+.sk{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;border-top:1px solid #8a7b62;padding-top:6px;font-size:15px;line-height:1.2}
+.sk b{font-family:var(--display);font-weight:400;font-size:18px}
+.sk button{font-family:var(--display);font-size:16px;background:var(--ink-dark);color:var(--paper);border:0;padding:8px 10px;cursor:pointer}
+.sheet .weak{font-size:15px;color:#5c4f3d;border-top:1px solid #8a7b62;padding-top:6px}
+
+#lich{font-size:18px;line-height:1.3}
+#lich .who{font-family:var(--label);font-weight:700;letter-spacing:.08em;font-size:13px;color:var(--candle);display:block;margin-bottom:4px}
+#ask{display:none;border-color:var(--candle);box-shadow:5px 5px 0 0 var(--candle);animation:pulse 1.6s ease-in-out infinite}
+#ask.on{display:block}
+#talk{font-size:20px;padding:26px 16px;border-color:var(--blood);box-shadow:5px 5px 0 0 var(--blood);touch-action:none}
+#talk.down{background:var(--blood);color:#1a0508;box-shadow:1px 1px 0 0 var(--blood)}
+#talk small{display:block;font-family:var(--text);text-transform:none;letter-spacing:0;font-weight:400;font-size:15px;color:#5c4f3d;margin-top:4px}
+#heard{min-height:22px;font-size:16px;color:var(--ink-soft)}
+.dice{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.dice button{font-family:var(--display);font-size:17px;padding:12px 0;background:var(--plate);color:var(--ink);border:2px solid var(--hatch);cursor:pointer}
+form{display:grid;grid-template-columns:1fr auto;gap:8px}
+</style>
+</head>
+<body>
+<div class="w">
+  <h1>Нижний Край</h1>
+  <div id="err"></div>
+
+  <section class="view" id="v-join">
+    <div class="row"><label class="label" for="name">Как тебя зовут</label><input id="name" type="text" maxlength="20" autocomplete="off" placeholder="Антон"></div>
+    <div class="row"><label class="label" for="room">Код комнаты с экрана</label><input id="room" type="text" maxlength="8" autocomplete="off" autocapitalize="characters" placeholder="ABCDE"></div>
+    <button class="btn main" id="join" type="button">Войти в логово</button>
+  </section>
+
+  <section class="view" id="v-race" hidden>
+    <h2>Кто ты такой</h2>
+    <div class="grid2" id="races"></div>
+  </section>
+
+  <section class="view" id="v-legend" hidden>
+    <h2 id="race-title">Твоя легенда</h2>
+    <div class="muted">Выбери готовую или расскажи свою. Лич соберёт из неё монстра.</div>
+    <div class="row" id="legends"></div>
+    <div class="label">Своя легенда</div>
+    <textarea id="legend" maxlength="700" placeholder="Кто ты, откуда взялся, чего боишься, что умеешь"></textarea>
+    <button class="btn" id="dictate" type="button">Зажми и наговори легенду</button>
+    <button class="btn main" id="make" type="button">Слепить монстра</button>
+    <button class="btn dark" id="back-race" type="button">Другая раса</button>
+  </section>
+
+  <section class="view" id="v-wait" hidden>
+    <h2>Лич лепит твоего монстра <span class="flame"></span></h2>
+    <div class="muted">Кости, глина, немного плесени. Секунд десять.</div>
+  </section>
+
+  <section class="view" id="v-play" hidden>
+    <div class="plate shadow sheet"><div class="in" id="sheet"></div></div>
+    <div id="lich"></div>
+    <button class="btn" id="ask" type="button"></button>
+    <button class="btn" id="talk" type="button">Зажми и говори<small>отпустил — лич услышал</small></button>
+    <div id="heard"></div>
+    <form id="form"><input id="txt" type="text" autocomplete="off" placeholder="или напиши текстом" aria-label="Сообщение личу"><button class="btn" type="submit">Сказать</button></form>
+    <div class="label">Бросить кубик</div>
+    <div class="dice" id="dice"></div>
+    <button class="btn dark" id="remake" type="button">Слепить другого монстра</button>
+  </section>
+</div>
+<script src="/pad.js"></script>
+</body>
+</html>

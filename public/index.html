@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Нижний Край</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kurale&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=Cormorant+SC:wght@700&family=Neucha&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+body{display:grid;place-items:center;padding:24px 16px}
+.w{max-width:560px;display:grid;gap:24px;text-align:center}
+h1{font-size:64px;line-height:1;color:var(--paper)}
+p{margin:0;color:var(--ink-soft)}
+.go{display:grid;gap:18px}
+.btn{font-size:18px;padding:20px}
+.btn small{display:block;font-family:var(--text);text-transform:none;letter-spacing:0;font-weight:400;font-size:15px;margin-top:4px;color:#5c4f3d}
+</style>
+</head>
+<body>
+<div class="w">
+  <h1>Нижний Край</h1>
+  <p>Ты монстр. Герои придут в пятницу. Старый лич на пенсии ведёт игру.</p>
+  <div class="go">
+    <a class="btn main" href="/screen.html">Это экран<small>телевизор или компьютер: тут сидит лич и катаются кубики</small></a>
+    <a class="btn" href="/pad.html">Это пульт<small>телефон: создаёшь монстра и говоришь с личом</small></a>
+  </div>
+</div>
+<script>
+// ссылка с кодом комнаты ведёт сразу на пульт
+var r=new URLSearchParams(location.search).get('room'); if(r) location.replace('/pad.html?room='+encodeURIComponent(r));
+</script>
+</body>
+</html>
