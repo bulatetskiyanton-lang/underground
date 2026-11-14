@@ -104,6 +104,12 @@ body.play{padding-top:calc(10px + env(safe-area-inset-top))}
 #lich .face{width:72px;height:72px;border-radius:50%;border:3px solid var(--ink-dark);box-shadow:0 0 0 3px var(--paper-2),0 0 0 5px var(--ink-dark);background:#000 url(/img/lich_closed.webp) 50% 20%/270% auto}
 #lich .paper{padding:14px 16px;font-size:17px;line-height:1.3;min-height:72px}
 #lich .paper::after{content:"";position:absolute;left:-13px;top:22px;width:20px;height:20px;background:var(--paper-2);border-left:3px solid var(--ink-dark);border-bottom:3px solid var(--ink-dark);transform:rotate(45deg)}
+.votes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:-6px}
+.btn.vote{min-height:44px;font-size:16px;padding:6px 10px}
+.btn.vote[aria-pressed="true"]{background:var(--ink-dark);color:var(--paper-2)}
+#v-up[aria-pressed="true"]{box-shadow:0 0 0 2px var(--candle,#f0962b)}
+.btn.vote:disabled{opacity:.45}
+.skill.bones .ibox img{width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply}
 #heard{min-height:22px;font-size:16px;color:var(--ink-soft);text-align:center}
 form{display:grid;grid-template-columns:1fr auto;gap:8px}
 
@@ -185,6 +191,7 @@ body.play{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
 
     <div class="tab" id="t-talk" hidden>
       <div id="lich"><div class="face"></div><div class="paper"><span id="lich-text">Лич пока молчит.</span></div></div>
+      <div class="votes"><button type="button" class="btn vote" id="v-up" aria-pressed="false" disabled>Браво</button><button type="button" class="btn vote" id="v-down" aria-pressed="false" disabled>Мимо</button></div>
       <button class="sealbtn" id="talk" type="button" aria-label="Зажми и говори"></button>
       <div class="seal-label">Зажми печать и говори. Отпустил — лич услышал.</div>
       <div id="goal" class="paper" hidden></div>

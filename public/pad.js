@@ -48,7 +48,9 @@
   function onMsg(m) {
     if (m.t === 'you') { pid = m.pid; store.set('nk_pid', pid); }
     else if (m.t === 'state') { state = m; me = (m.players || []).filter(function (p) { return p.pid === pid; })[0] || null; render(); }
-    else if (m.t === 'lich') { showLich(m.text, m.roll); }
+    else if (m.t === 'lich') { showLich(m.text, m.roll, m.id); }
+    else if (m.t === 'votes' && m.mine && m.mine[pid] != null) { myVote[m.id] = m.mine[pid]; markVote(); }
+    else if (m.t === 'bones' && m.pid === pid) { toastBones(m); try { navigator.vibrate && navigator.vibrate(m.n > 0 ? [20, 40, 20, 40, 60] : 40); } catch (x) { /* ок */ } }
     else if (m.t === 'make_failed') { err(m.text); wantRemake = true; render(); }
     else if (m.t === 'gift' && m.pid === pid) { selItem = m.i; ping('gear'); toastGift(m.item); try { navigator.vibrate && navigator.vibrate([30, 60, 30]); } catch (x) { /* ок */ } }
   }
@@ -59,7 +61,7 @@
     if (!me) return;
     if (me.making) return show('wait');
     if (me.monster && !wantRemake) {
-      drawSheet(); drawGear(); drawPaths(); if (state.lich) showLich(state.lich.text, state.lich.roll);
+      drawSheet(); drawGear(); drawPaths(); if (state.lich) showLich(state.lich.text, state.lich.roll, state.lich.id);
       $('title').textContent = me.monster.name;
       return show('play');
     }
@@ -117,6 +119,7 @@
         '<div class="stat"><span class="medal">' + NKUI.icon('eye') + '</span><b>' + esc(tr[1] || '—') + '</b>' + esc(tr[2] || '') + '</div>' +
       '</div>' +
       (m.skills || []).map(function (s, i) { return '<div class="paper skill"><div class="ibox">' + NKUI.icon(SK_IC[i % 3]) + '</div><div><b>' + esc(s.name) + '</b>' + esc(s.desc) + '</div><button type="button" class="die-btn" data-sk="' + i + '" aria-label="Бросить ' + esc(s.die) + '">' + NKUI.die(s.die) + '</button></div>'; }).join('') +
+      '<div class="paper skill bones"><div class="ibox"><img src="/img/items/bone.webp" alt=""></div><div><b>' + bonesWord(me.bones || 0) + '</b>Лич даёт за находчивость и смешное. Трать словами: «выкуплю», «уговорю соседа за кость», «растолкаю напарника».</div></div>' +
       '<div class="paper skill weak"><div class="ibox">' + NKUI.icon('skull') + '</div><div><b>Слабость</b>' + esc(m.weakness) + '<br><span class="hand" style="font-size:17px">«' + esc(m.phrase) + '»</span></div></div>';
   }
   $('sheet').addEventListener('click', function (e) {
@@ -126,6 +129,15 @@
     send({ t: 'roll', die: s.die, power: 0.5 + Math.random() * 0.4 });
     setTab('talk');
   });
+
+  function bonesWord(n) { var k = Math.abs(n) % 100, d = k % 10; return Math.abs(n) + ' ' + (k > 10 && k < 20 ? 'костей' : d === 1 ? 'кость' : d >= 2 && d <= 4 ? 'кости' : 'костей'); }
+  function toastBones(m) {
+    var d = document.createElement('button'); d.type = 'button'; d.className = 'gift';
+    d.innerHTML = '<img src="/img/items/bone.webp" alt=""><div><small>' + (m.n > 0 ? 'Лич дал тебе' : 'Ты отдал') + '</small><b>' + bonesWord(m.n) + '</b>' + esc(m.why || '') + (m.n > 0 ? '' : '') + '<br>Всего: ' + bonesWord(m.total || 0) + '</div>';
+    d.addEventListener('click', function () { d.remove(); setTab('sheet'); });
+    document.body.appendChild(d); setTimeout(function () { d.classList.add('out'); setTimeout(function () { d.remove(); }, 500); }, 4200);
+    ping('sheet');
+  }
 
   // ---------- амуниция ----------
   function toastGift(it) {
@@ -197,7 +209,18 @@
   $('paths').addEventListener('click', function (e) { var b = e.target.closest('button[data-p]'); if (!b) return; var t = (state.paths || [])[Number(b.dataset.p)]; if (!t) return; $('heard').textContent = 'Ты: идём — ' + t; send({ t: 'say', text: 'Идём сюда: ' + t + '.' }); $('paths').innerHTML = ''; });
 
   // ---------- разговор ----------
-  function showLich(text, roll) {
+  // «браво» / «мимо»: что нравится, лич повторяет, что нет — больше не делает
+  var lichId = 0, myVote = {};
+  function markVote() {
+    var v = myVote[lichId] || 0;
+    $('v-up').setAttribute('aria-pressed', String(v > 0)); $('v-down').setAttribute('aria-pressed', String(v < 0));
+    $('v-up').disabled = $('v-down').disabled = !lichId;
+  }
+  function vote(v) { if (!lichId) return; var cur = myVote[lichId] || 0; v = cur === v ? 0 : v; myVote[lichId] = v; markVote(); send({ t: 'vote', id: lichId, v: v }); try { navigator.vibrate && navigator.vibrate(12); } catch (x) { /* ок */ } }
+  $('v-up').addEventListener('click', function () { vote(1); });
+  $('v-down').addEventListener('click', function () { vote(-1); });
+  function showLich(text, roll, id) {
+    if (id) { lichId = id; markVote(); }
     if ($('lich-text').textContent !== text) { $('lich-text').textContent = text; ping('talk'); }
     var mine = roll && (!roll.pid || roll.pid === pid);
     lastAsk = mine ? roll : null;

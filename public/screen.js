@@ -49,11 +49,13 @@ const err = (t) => { $('err').textContent = t || ''; };
 
 function onMsg(m) {
   if (m.t === 'state') { state = m; renderState(); if (m.lich && m.lich.id > lastLichId && !speaking) { lastLichId = m.lich.id; showLine(m.lich.text, false); showAsk(m.lich.roll); } }
-  else if (m.t === 'lich') { lastLichId = m.id; mood = m.mood || ''; stopGesture(['think', 'listen']); if (m.roll) gesture('dice'); else if (m.mood === 'смеётся') gesture('laugh'); else if (m.mood === 'злится') gesture('angry'); else if ((state.paths || []).length) gesture('point'); $('mood').textContent = m.mood || 'говорит'; showAsk(m.roll); speak(m.text); }
-  else if (m.t === 'think') { thinking = !!m.on; if (thinking) { $('mood').textContent = 'думает'; gesture('think'); if (Math.random() < 0.6) setTimeout(() => { if (thinking && !speaking) quip('think'); }, 900); } }
-  else if (m.t === 'talking') { if (m.on) { listening.add(m.pid); stopSpeak(); gesture('listen'); } else { listening.delete(m.pid); if (!listening.size) stopGesture(['listen']); } }
-  else if (m.t === 'said') { addLog(m.name, m.text); }
-  else if (m.t === 'rolled') { addLog(m.name, 'бросил ' + m.die + ': ' + m.n); }
+  else if (m.t === 'lich') { hush(); lastLichId = m.id; mood = m.mood || ''; stopGesture(['think', 'listen']); if (m.gesture && clipUrl[m.gesture]) gesture(m.gesture); else if (m.roll) gesture('dice'); else if (m.mood === 'смеётся') gesture('laugh'); else if (m.mood === 'злится') gesture('angry'); else if (m.gesture) gesture(m.gesture); else if ((state.paths || []).length) gesture('point'); $('mood').textContent = m.mood || 'говорит'; showAsk(m.roll); speak(m.text); }
+  else if (m.t === 'think') { hush(); thinking = !!m.on; if (thinking) { $('mood').textContent = 'думает'; if (!m.idle) { gesture('think'); if (Math.random() < 0.6) setTimeout(() => { if (thinking && !speaking) quip('think'); }, 900); } } }
+  else if (m.t === 'talking') { hush(); if (m.on) { listening.add(m.pid); stopSpeak(); gesture('listen'); } else { listening.delete(m.pid); if (!listening.size) stopGesture(['listen']); } }
+  else if (m.t === 'said') { hush(); addLog(m.name, m.text); }
+  else if (m.t === 'rolled') { hush(); addLog(m.name, 'бросил ' + m.die + ': ' + m.n); }
+  else if (m.t === 'bones') { showBones(m); }
+  else if (m.t === 'votes') { stampVote(m); }
   else if (m.t === 'do_roll') { doRoll(m.pid, m.die, m.power); quip('roll'); }
   else if (m.t === 'gift') { gesture('give'); showGift(m); }
   else if (m.t === 'scene') { gesture('map'); showScene(m, true); }
@@ -73,7 +75,7 @@ function renderState() {
     const img = p.pv ? `style="background-image:url('/api/portrait?room=${room}&pid=${encodeURIComponent(p.pid)}&v=${p.pv}')"` : '';
     if (!m) return `<div class="card"><div class="ph">?</div><div><h3>${esc(p.name || 'Кто-то')}</h3><div class="t">${p.making ? 'лич лепит монстра…' : 'выбирает монстра'}</div></div></div>`;
     const gear = (p.gear || []).map((i) => (m.items || [])[i]).filter(Boolean).map((it) => `<img src="/img/items/${esc(it.kind)}.webp" alt="${esc(it.name)}" title="${esc(it.name)}">`).join('');
-    return `<div class="card ${listening.has(p.pid) ? 'live' : ''}" data-pid="${esc(p.pid)}"><div class="ph" ${img}>${p.pv ? '' : esc(m.name[0] || '?')}</div><div><h3>${esc(m.name)}</h3><div class="t">${esc(m.title)} · ${esc(p.name || '')}</div><div class="hp">здоровье ${m.hp}${p.online ? '' : ' · не в сети'}</div>${gear ? `<div class="gear">${gear}</div>` : ''}</div></div>`;
+    return `<div class="card ${listening.has(p.pid) ? 'live' : ''}" data-pid="${esc(p.pid)}"><div class="ph" ${img}>${p.pv ? '' : esc(m.name[0] || '?')}</div><div><h3>${esc(m.name)}</h3><div class="t">${esc(m.title)} · ${esc(p.name || '')}</div><div class="hp">здоровье ${m.hp}<span class="bn" title="кости"><img src="/img/items/bone.webp" alt="">${p.bones || 0}</span>${p.online ? '' : ' · не в сети'}</div>${gear ? `<div class="gear">${gear}</div>` : ''}</div></div>`;
   }).join('') || '<div class="url">Пока никого. Наведи камеру телефона на код.</div>';
   const ready = ps.some((p) => p.monster);
   $('start').hidden = state.started || !ready;
@@ -133,6 +135,40 @@ function nextGift() {
     setTimeout(() => { c.remove(); if (card) { card.classList.add('live'); setTimeout(() => card.classList.remove('live'), 900); } nextGift(); }, 720);
   }, 3600);
 }
+
+// ---------- кости: лич награждает — кость с числом вылетает и летит в карточку монстра ----------
+const bonesWord = (n) => { const k = Math.abs(n) % 100, d = k % 10; return Math.abs(n) + ' ' + (k > 10 && k < 20 ? 'костей' : d === 1 ? 'кость' : d >= 2 && d <= 4 ? 'кости' : 'костей'); };
+function showBones(m) {
+  const box = $('giftfx');
+  const c = document.createElement('div'); c.className = 'bonefx' + (m.n < 0 ? ' pay' : '');
+  c.innerHTML = `<img src="/img/items/bone.webp" alt=""><b>${m.n > 0 ? '+' : '−'}${esc(bonesWord(m.n))}</b><small>${esc(m.name)}${m.why ? ' · ' + esc(m.why) : ''}</small>`;
+  box.appendChild(c);
+  addLog(m.name, (m.n > 0 ? 'получил ' : 'отдал ') + bonesWord(m.n));
+  setTimeout(() => {
+    const card = document.querySelector(`.card[data-pid="${CSS.escape(m.pid)}"]`);
+    if (card) { const a = c.getBoundingClientRect(), b = card.getBoundingClientRect(); c.style.setProperty('--fx', (b.left + b.width / 2 - (a.left + a.width / 2)) + 'px'); c.style.setProperty('--fy', (b.top + b.height / 2 - (a.top + a.height / 2)) + 'px'); }
+    else { c.style.setProperty('--fx', '-60vw'); c.style.setProperty('--fy', '0px'); }
+    c.classList.add('fly');
+    setTimeout(() => { c.remove(); if (card) { const bn = card.querySelector('.bn'); if (bn) { bn.classList.remove('pop'); void bn.offsetWidth; bn.classList.add('pop'); } } }, 720);
+  }, 2400);
+}
+// «браво» с телефона — на табличке реплики на секунду проступает штамп
+let lastUp = {};
+function stampVote(m) {
+  if (m.id !== lastLichId || (m.up || 0) <= (lastUp[m.id] || 0)) { lastUp[m.id] = m.up || 0; return; }
+  lastUp[m.id] = m.up;
+  const s = document.createElement('div'); s.className = 'bravo'; s.textContent = m.up > 1 ? 'Браво ×' + m.up : 'Браво!';
+  $('plate').appendChild(s); setTimeout(() => s.remove(), 1800);
+}
+
+// ---------- живые паузы: полминуты тишины — просим лича что-нибудь сделать (сервер пускает не чаще раза в 2 минуты) ----------
+let quietSince = performance.now();
+function hush() { quietSince = performance.now(); }
+setInterval(() => {
+  const now = performance.now();
+  if (!state.started || speaking || thinking || listening.size || (window.NKDice && NKDice.busy && NKDice.busy())) { if (speaking || thinking || listening.size) quietSince = now; return; }
+  if (now - quietSince > 30000) { quietSince = now; send({ t: 'idle' }); }
+}, 1000);
 
 // ---------- голос и липсинк ----------
 let curAudio = null, lineText = '', lineDur = 0, lineT0 = 0;
@@ -194,7 +230,7 @@ async function speak(text, ready) {
   curAudio = a;
   try { if (audioCtx) { if (audioCtx.state === 'suspended') await audioCtx.resume(); audioCtx.createMediaElementSource(a).connect(analyser); } } catch { /* играем напрямую */ }
   a.onloadedmetadata = () => { if (isFinite(a.duration)) lineDur = a.duration; };
-  a.onended = a.onerror = () => { if (my === speakSeq) { speaking = false; curAudio = null; level = 0; $('said').textContent = text; $('rest').textContent = ''; $('mood').textContent = 'ждёт'; } };
+  a.onended = a.onerror = () => { if (my === speakSeq) { hush(); speaking = false; curAudio = null; level = 0; $('said').textContent = text; $('rest').textContent = ''; $('mood').textContent = 'ждёт'; } };
   lineDur = Math.max(1.5, text.length / 15); lineT0 = performance.now(); speaking = true;
   try { await a.play(); } catch (e) { err('Звук не включился: нажми на страницу'); a.onended(); }
 }
@@ -217,7 +253,7 @@ let curFrame = 'closed';
 function setFrame(f) { if (f === curFrame) return; frames[curFrame].classList.remove('on'); frames[f].classList.add('on'); curFrame = f; }
 
 // ролики лича: у всех первый и последний кадр — одна и та же поза, поэтому режем встык, без растворения.
-const CLIPS = { idle: ['idle1', 'idle2'], talk: ['talk1', 'talk2'], gest: ['map', 'point', 'dice', 'give', 'laugh', 'angry', 'think', 'listen'] };
+const CLIPS = { idle: ['idle1', 'idle2'], talk: ['talk1', 'talk2'], gest: ['map', 'point', 'dice', 'give', 'laugh', 'angry', 'think', 'listen', 'sixseven'] };
 const clipUrl = {};
 const vv = [$('v-a'), $('v-b')];
 let videoOk = false, talkHold = 0, cur = 0, curClip = '', nextClip = '', gestQ = [], lastIdle = '';

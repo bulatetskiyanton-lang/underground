@@ -22,5 +22,7 @@
     "ELEVENLABS_VOICE_ID": "KYdoRakolKZAEj8oZgAm"
   },
   "ai": { "binding": "AI" },
+  // Книга мира (lore.md) подключается в воркер как текст
+  "rules": [{ "type": "Text", "globs": ["**/*.md"], "fallthrough": true }],
   "observability": { "enabled": true }
 }

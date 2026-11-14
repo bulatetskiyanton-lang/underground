@@ -2,6 +2,27 @@
 // голос (ElevenLabs), распознавание речи (ElevenLabs Scribe), портреты монстров (Workers AI).
 // Ключи лежат секретами в Cloudflare: ANTHROPIC_API_KEY, ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID.
 
+import LORE from '../lore.md';
+
+// Книга мира: лич получает раздел «Коротко для лича», сценарист — файл целиком.
+const LORE_SHORT = (String(LORE).split('## Коротко для лича')[1] || '').split('\n## ')[0].trim();
+
+// Образцы юмора лича. Черновик Claude по просьбе Антона (14.11) — Антон правит, меняет на свои.
+const ANTON_LINES = [
+  'Шестьдесят семь лет на пенсии, а покоя всё нет. Шесть-семь, как говорит молодёжь. Понятия не имею, что это значит.',
+  'Герой опять вытер сапоги о мой коврик. О мой! Коврик! Я его триста лет назад у тролля выиграл.',
+  'Справку о посмертии мне выдавали сорок лет. Твоя просьба подождёт пять минут, не рассыплешься.',
+  'Усы — это всё, что у меня осталось от лица. Не трожь усы.',
+  'Бессмертие — это когда сериал кончился, а ты всё ещё сидишь.',
+  'Две кости за гриб в сапоге. Ещё и мало дал, я бы сам до такого не додумался.',
+  'Паладины пахнут мылом. Это хуже, чем серебро.',
+];
+
+// компания, у которой копится вкус и новое в мире между вечерами (пока одна — дом Антона)
+const CREW = 'home';
+const plural = (n, a, b, c) => { const k = Math.abs(n) % 100, d = k % 10; return k > 10 && k < 20 ? c : d === 1 ? a : d >= 2 && d <= 4 ? b : c; };
+const bonesWord = (n) => `${n} ${plural(n, 'кость', 'кости', 'костей')}`;
+
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const randomCode = (len = 5) => {
   const b = new Uint8Array(len);
@@ -34,7 +55,55 @@ const LICH_PROMPT = `Ты — старый лич на пенсии, масте�
 - Когда есть развилка, заполни paths: два-три коротких варианта, куда пойти дальше. Они появятся на карте и у игроков кнопками.
 - Если по сюжету монстр что-то находит, получает или крадёт (осколок, ключ, зелье, кость, монету) — заполни give: кому и что. Вещь сразу появится у него в амуниции. Дари редко и со смыслом, не чаще раза в несколько ходов. У каждой вещи должно быть понятное применение: в desc напиши, что ею можно сделать, начиная с глагола («Открыть одну запертую дверь», «Отвлечь стражу на один ход»). Когда даришь, одной фразой скажи вслух, на что она годится. Если монстр спрашивает, что делать с вещью, — ответь прямо и подскажи, где она пригодится сейчас.
 - Веди список заданий quests: от одного до четырёх коротких заданий, которые сейчас стоят перед монстрами (главное и побочные, у соседей тоже бывают просьбы). Отдавай список целиком, когда он изменился: новое задание, выполнено (done: true), провалено — убери.
-- Говори на том языке, на котором говорят игроки (русский или украинский).`;
+- Говори на том языке, на котором говорят игроки (русский или украинский).
+
+Кости — твоя награда:
+- За находчивое решение или смешную реплику игрока дай кости: заполни bones (кому, сколько от 1 до 3, за что) и скажи вслух, например: «Ха! За гриб в сапог — две кости». Не чаще раза в три-четыре хода: в запросе написано, можно ли сейчас.
+- Кости копятся у монстра и тратятся словами: выкупить вещь у соседа, уговорить соседа, растолкать вырубленного напарника, купить подсказку. Если монстр тратит кости и их хватает — заполни pay (кто, сколько, на что). Не хватает — ворчи, в долг не даёшь.
+
+Юмор — твои темы: кости и усы, скука бессмертия, герои как назойливые соседи сверху, подземный быт (сырость, сквозняки, плесень, соседи), бюрократия мёртвых (справки, очереди, Контора Упокоения). Шутка не повторяется: если уже было — придумай другую.
+Иногда, когда к слову пришлись шесть и семь («шестьдесят семь лет назад», «шестьсот семьдесят костей»), делай модный жест: gesture = sixseven. Редко, раз за вечер.
+Жесты (gesture) вообще по желанию: think — задумался, listen — прислушался, laugh — хохочет, map — показывает на карту, point — указывает. Обычно не нужен.
+
+Если в запросе есть «Шпаргалка сценариста» — держись её: веди сюжет туда, подбрасывай намёки тонко, вслух её не пересказывай. «Замечание редактора» — учти в этой реплике.
+«Игрокам понравилось» — образцы тона, длины и шуток. «Не понравилось» — так больше не делай.
+
+Мир — коротко:
+${LORE_SHORT}`;
+
+const ANTON_BLOCK = ANTON_LINES.length ? `\n\nОбразцы юмора от автора игры — держи этот тон:\n${ANTON_LINES.map((l) => '- ' + l).join('\n')}` : '';
+const LICH_SYSTEM = LICH_PROMPT + ANTON_BLOCK;
+
+const WRITER_PROMPT = `Ты — сценарист и редактор настольной игры «Нижний Край». Игроки тебя не слышат. Ведущий игры — старый лич (быстрая модель): он говорит вслух короткими репликами. Твоя работа — держать сюжет вечера и подсказывать личу.
+
+Что делаешь каждый раз:
+1. Шпаргалка личу (cheat), до 600 знаков: куда ведёт сюжет прямо сейчас, какой намёк подбросить в ближайшие ходы, чем закончить текущую главу. Конкретно, с именами и предметами из игры. Без раскрытия тайн.
+2. Скрытые повороты (twists): держи 2–3 поворота на вечер. Каждый — намёк (hint), который лич может подбросить, и развязка (reveal). ready = true, только когда пора раскрыть. Уже рассказанные (told) не меняй, можно заменить новым.
+3. Разбор (critique): одна-две строки о последних репликах лича: «длинно», «шутка про усы повторилась», «забыл про верёвку у входа», «не дал Гимличеку слова». Только по делу, если всё хорошо — так и пиши коротко.
+4. Новое в мире (lore_add): что появилось в игре и стоит помнить между вечерами — имена, места, вещи, долги, ссоры. Только новое, не повторяй Книгу мира.
+
+Приёмы: для каждого поворота придумай три развязки и выбери самую неожиданную, но честную — чтобы игроки потом сказали «а ведь были намёки». Один переворот на главу. Конец главы — крючок на следующий вечер. Используй то, что игроки сами придумали и подготовили: ловушки, вещи, обещания.
+Запрещено: пророчества, избранные, тёмные властелины, древнее зло, судьба мира, пафос. Никто не умирает навсегда.
+
+Арка вечера — пять глав: 1 заселение, 2 соседи, 3 слухи о героях, 4 подготовка к рейду, 5 рейд.`;
+
+const WRITER_TOOL = {
+  name: 'writer_notes',
+  description: 'Заметки сценариста для лича',
+  input_schema: {
+    type: 'object',
+    properties: {
+      cheat: { type: 'string', description: 'Шпаргалка личу, до 600 знаков' },
+      twists: {
+        type: 'array', description: '2-3 скрытых поворота на вечер',
+        items: { type: 'object', properties: { id: { type: 'string', description: 'Короткий ярлык, 1-3 слова' }, hint: { type: 'string', description: 'Намёк, который лич может подбросить, до 140 знаков' }, reveal: { type: 'string', description: 'Развязка, до 220 знаков' }, ready: { type: 'boolean', description: 'Пора раскрыть' } }, required: ['id', 'hint', 'reveal'] },
+      },
+      critique: { type: 'string', description: 'Разбор последних реплик лича, 1-2 строки, до 220 знаков' },
+      lore_add: { type: 'array', items: { type: 'string' }, description: 'До 3 новых фактов мира, по одной фразе' },
+    },
+    required: ['cheat', 'twists', 'critique'],
+  },
+};
 
 const LICH_TOOL = {
   name: 'lich_reply',
@@ -72,6 +141,19 @@ const LICH_TOOL = {
         properties: { who: { type: 'string' }, die: { type: 'string', enum: DICE }, why: { type: 'string' } },
         required: ['who', 'die', 'why'],
       },
+      bones: {
+        type: 'object',
+        description: 'Награда костями за находчивость или смешную реплику. Только если в запросе сказано, что сейчас можно',
+        properties: { who: { type: 'string', description: 'Имя монстра' }, n: { type: 'integer', minimum: 1, maximum: 3 }, why: { type: 'string', description: 'За что, до 60 знаков' } },
+        required: ['who', 'n', 'why'],
+      },
+      pay: {
+        type: 'object',
+        description: 'Монстр тратит свои кости (выкуп, уговор, растолкать напарника, подсказка)',
+        properties: { who: { type: 'string', description: 'Имя монстра' }, n: { type: 'integer', minimum: 1, maximum: 10 }, why: { type: 'string', description: 'На что, до 60 знаков' } },
+        required: ['who', 'n', 'why'],
+      },
+      gesture: { type: 'string', enum: ['think', 'listen', 'laugh', 'map', 'point', 'sixseven'], description: 'Жест лича, если нужен' },
     },
     required: ['say', 'mood'],
   },
@@ -115,14 +197,14 @@ const MONSTER_TOOL = {
   },
 };
 
-async function claude(env, { system, user, tool, maxTokens = 400, timeout = 20000 }) {
+async function claude(env, { system, user, tool, maxTokens = 400, timeout = 20000, model }) {
   if (!env.ANTHROPIC_API_KEY) return { error: 'нет ключа ANTHROPIC_API_KEY в Cloudflare' };
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: env.LICH_MODEL || 'claude-haiku-5-5',
+        model: model || env.LICH_MODEL || 'claude-haiku-5-5',
         max_tokens: maxTokens,
         system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
         tools: [tool],
@@ -182,6 +264,15 @@ export class Room {
     this.lastLich = null;
     this.chain = Promise.resolve();
     this.seq = 0;
+    this.turnNo = 0;             // ходы лича (без пауз)
+    this.bonesAt = -99;          // на каком ходу лич последний раз дал кости
+    this.lines = [];             // последние реплики лича: { id, text, after } — за них голосуют
+    this.votes = {};             // id реплики → { pid: 1 | -1 }
+    this.writer = { cheat: '', critique: '', twists: [], at: 0 };
+    this.writing = false;
+    this.taste = null;           // вкус компании: { good, bad, lore } — живёт в отдельной комнате «taste:home»
+    this.busy = false;
+    this.lastIdle = 0;
     ctx.blockConcurrencyWhile(async () => {
       try {
         const s = await ctx.storage.get('snap');
@@ -190,6 +281,8 @@ export class Room {
           this.log = s.log || []; this.started = !!s.started; this.scene = s.scene || this.scene; this.lastLich = s.lastLich || null;
           if (s.places?.length) { this.places = s.places; this.edges = s.edges || []; this.cur = s.cur || 0; this.paths = s.paths || []; }
           this.goal = s.goal || ''; this.notes = s.notes || []; this.quests = s.quests || [];
+          this.seq = this.lastLich?.id || 0; this.turnNo = s.turnNo || 0; this.bonesAt = s.bonesAt ?? -99;
+          this.lines = s.lines || []; this.votes = s.votes || {}; if (s.writer) this.writer = s.writer;
         }
       } catch (e) { console.error('restore', e); }
     });
@@ -199,12 +292,43 @@ export class Room {
     if (this.saveTimer) return;
     this.saveTimer = setTimeout(async () => {
       this.saveTimer = null;
-      try { await this.ctx.storage.put('snap', { players: [...this.players.values()], log: this.log.slice(-40), started: this.started, scene: this.scene, lastLich: this.lastLich, places: this.places, edges: this.edges, cur: this.cur, paths: this.paths, goal: this.goal, notes: this.notes, quests: this.quests }); } catch (e) { console.error('save', e); }
+      try { await this.ctx.storage.put('snap', { players: [...this.players.values()], log: this.log.slice(-40), started: this.started, scene: this.scene, lastLich: this.lastLich, places: this.places, edges: this.edges, cur: this.cur, paths: this.paths, goal: this.goal, notes: this.notes, quests: this.quests, turnNo: this.turnNo, bonesAt: this.bonesAt, lines: this.lines.slice(-20), votes: this.votes, writer: this.writer }); } catch (e) { console.error('save', e); }
     }, 400);
+  }
+
+  // ---------- вкус компании: отдельная комната «taste:<компания>», копится между вечерами ----------
+  async tasteFetch(path, body) {
+    const stub = this.env.ROOMS.get(this.env.ROOMS.idFromName('taste:' + CREW));
+    const res = await stub.fetch('https://taste' + path, body ? { method: 'POST', body: JSON.stringify(body) } : undefined);
+    return res.json();
+  }
+  async loadTaste() {
+    if (this.taste) return this.taste;
+    try { this.taste = await this.tasteFetch('/taste'); } catch (e) { console.error('taste', e); this.taste = { good: [], bad: [], lore: [] }; }
+    return this.taste;
+  }
+  async tasteStore(request) {
+    const t = (await this.ctx.storage.get('taste')) || { good: [], bad: [], lore: [] };
+    if (request.method === 'POST') {
+      let b = {}; try { b = await request.json(); } catch { /* пусто */ }
+      if (b.op === 'vote' && b.text) {
+        const text = clean(b.text, 260);
+        t.good = t.good.filter((x) => x.text !== text); t.bad = t.bad.filter((x) => x.text !== text);
+        if (b.v > 0) t.good = [...t.good, { text, after: clean(b.after, 140) }].slice(-12);
+        if (b.v < 0) t.bad = [...t.bad, { text, after: clean(b.after, 140) }].slice(-8);
+      }
+      if (b.op === 'lore' && Array.isArray(b.add)) {
+        const have = new Set(t.lore);
+        t.lore = [...t.lore, ...b.add.map((x) => clean(x, 160)).filter((x) => x && !have.has(x))].slice(-40);
+      }
+      await this.ctx.storage.put('taste', t);
+    }
+    return Response.json(t);
   }
 
   async fetch(request) {
     const url = new URL(request.url);
+    if (url.hostname === 'taste') return this.tasteStore(request);
     if (url.pathname === '/api/portrait') {
       const buf = await this.ctx.storage.get(`img:${url.searchParams.get('pid')}`);
       if (!buf) return new Response('нет портрета', { status: 404 });
@@ -245,7 +369,7 @@ export class Room {
   view() {
     return {
       t: 'state', started: this.started, scene: this.scene, lich: this.lastLich, places: this.places, edges: this.edges, cur: this.cur, paths: this.paths, goal: this.goal, notes: this.notes.slice(-6), quests: this.quests,
-      players: [...this.players.values()].map((p) => ({ pid: p.pid, name: p.name, race: p.race, monster: p.monster, gear: p.gear || [], fresh: p.fresh ?? -1, making: !!p.making, online: !!p.online, pv: p.pv || 0 })),
+      players: [...this.players.values()].map((p) => ({ pid: p.pid, name: p.name, race: p.race, monster: p.monster, gear: p.gear || [], fresh: p.fresh ?? -1, making: !!p.making, online: !!p.online, pv: p.pv || 0, bones: p.bones || 0 })),
       log: this.log.slice(-8),
     };
   }
@@ -270,7 +394,8 @@ export class Room {
     if (c.role === 'screen') {
       if (m.t === 'start') { this.started = true; this.state(); this.turn({ kind: 'start' }); }
       else if (m.t === 'rolled') this.rolled(m.pid, m.die, m.n);
-      else if (m.t === 'reset') { this.players.clear(); this.log = []; this.started = false; this.lastLich = null; this.scene = 'Логово лича'; this.places = [{ name: 'Логово лича', v: 0 }]; this.edges = []; this.cur = 0; this.paths = []; this.goal = ''; this.notes = []; this.quests = []; this.state(); }
+      else if (m.t === 'reset') { this.players.clear(); this.log = []; this.started = false; this.lastLich = null; this.scene = 'Логово лича'; this.places = [{ name: 'Логово лича', v: 0 }]; this.edges = []; this.cur = 0; this.paths = []; this.goal = ''; this.notes = []; this.quests = []; this.turnNo = 0; this.bonesAt = -99; this.lines = []; this.votes = {}; this.writer = { cheat: '', critique: '', twists: [], at: 0 }; this.state(); }
+      else if (m.t === 'idle') this.idle();
       return;
     }
     const p = this.players.get(c.pid);
@@ -287,6 +412,7 @@ export class Room {
       const it = p.monster?.items?.[Number(m.i)];
       if (!it || !(p.gear || []).includes(Number(m.i))) return;
       const text = `Использую предмет «${it.name}» (${it.desc}).`;
+      p.lastSaid = Date.now();
       this.log.push({ who: this.label(p), text });
       this.cast({ t: 'said', pid: p.pid, name: this.label(p), text });
       this.turn({ kind: 'say', who: this.label(p), text });
@@ -294,10 +420,12 @@ export class Room {
     else if (m.t === 'say') {
       const text = clean(m.text, 500);
       if (!text) return;
+      p.lastSaid = Date.now();
       this.log.push({ who: this.label(p), text });
       this.cast({ t: 'said', pid: p.pid, name: this.label(p), text });
       this.turn({ kind: 'say', who: this.label(p), text });
-    } else if (m.t === 'roll') {
+    } else if (m.t === 'vote') this.vote(p, Number(m.id), Number(m.v));
+    else if (m.t === 'roll') {
       const die = DICE.includes(m.die) ? m.die : 'd20';
       const power = Math.max(0.1, Math.min(1, Number(m.power) || 0.6));
       if (this.hasScreen()) this.cast({ t: 'do_roll', pid: p.pid, name: this.label(p), die, power }, 'screen');
@@ -324,9 +452,7 @@ export class Room {
   }
 
   give(g) {
-    const who = clean(g.who, 40).toLowerCase();
-    const ps = [...this.players.values()].filter((p) => p.monster);
-    const p = ps.find((x) => who.includes(x.monster.name.toLowerCase()) || (x.name && who.includes(x.name.toLowerCase()))) || (ps.length === 1 ? ps[0] : null);
+    const p = this.findMonster(g.who);
     if (!p) return;
     const item = { name: clean(g.name, 30), desc: clean(g.desc, 80), kind: ITEM_KINDS.includes(g.kind) ? g.kind : 'chest', gift: true };
     p.monster.items = [...(p.monster.items || []), item].slice(-12);
@@ -396,47 +522,156 @@ export class Room {
     this.chain = this.chain.then(() => this.lich(ev)).catch((e) => console.error('turn', e));
   }
 
+  // монстр по имени из ответа лича: «Гимличек», «Гимличек (Антон)», имя игрока
+  findMonster(who) {
+    const w = clean(who, 60).toLowerCase();
+    const ps = [...this.players.values()].filter((p) => p.monster);
+    return ps.find((x) => w && (w.includes(x.monster.name.toLowerCase()) || (x.name && w.includes(x.name.toLowerCase())))) || (ps.length === 1 ? ps[0] : null);
+  }
+
+  // ---------- кости ----------
+  award(b) {
+    const p = this.findMonster(b.who);
+    if (!p) return;
+    const n = Math.max(1, Math.min(3, Math.round(Number(b.n) || 1)));
+    p.bones = (p.bones || 0) + n;
+    this.bonesAt = this.turnNo;
+    const why = clean(b.why, 70);
+    this.log.push({ who: this.label(p), text: `получил ${bonesWord(n)}${why ? ' — ' + why : ''}` });
+    this.cast({ t: 'bones', pid: p.pid, name: this.label(p), n, why, total: p.bones });
+  }
+  pay(b) {
+    const p = this.findMonster(b.who);
+    if (!p) return;
+    const n = Math.max(1, Math.min(10, Math.round(Number(b.n) || 1)));
+    if ((p.bones || 0) < n) return;           // в долг лич не даёт
+    p.bones -= n;
+    const why = clean(b.why, 70);
+    this.log.push({ who: this.label(p), text: `отдал ${bonesWord(n)}${why ? ' — ' + why : ''}` });
+    this.cast({ t: 'bones', pid: p.pid, name: this.label(p), n: -n, why, total: p.bones });
+  }
+
+  // ---------- «браво» / «мимо» с телефона ----------
+  async vote(p, id, v) {
+    const line = this.lines.find((l) => l.id === id);
+    if (!line || ![1, -1, 0].includes(v)) return;
+    const vs = (this.votes[id] = this.votes[id] || {});
+    if (v === 0) delete vs[p.pid]; else vs[p.pid] = v;
+    const sum = Object.values(vs).reduce((a, x) => a + x, 0);
+    const keys = Object.keys(this.votes).map(Number).sort((a, b) => a - b);
+    while (keys.length > 30) delete this.votes[keys.shift()];
+    const up = Object.values(vs).filter((x) => x > 0).length, down = Object.values(vs).filter((x) => x < 0).length;
+    this.cast({ t: 'votes', id, up, down, mine: { [p.pid]: v } });
+    this.save();
+    try { this.taste = await this.tasteFetch('/taste', { op: 'vote', v: Math.sign(sum), text: line.text, after: line.after }); } catch (e) { console.error('vote', e); }
+  }
+
+  // ---------- живая пауза: экран прислал «полминуты тишины» ----------
+  idle() {
+    const now = Date.now();
+    if (!this.started || this.busy || now - this.lastIdle < 120000) return;
+    if (![...this.players.values()].some((p) => p.monster)) return;
+    this.lastIdle = now;
+    const quiet = [...this.players.values()].filter((p) => p.monster && p.online !== false).sort((a, b) => (a.lastSaid || 0) - (b.lastSaid || 0))[0];
+    this.turn({ kind: 'idle', who: quiet ? this.label(quiet) : '' });
+  }
+
+  // ---------- сценарист-критик: раз в 4 хода, в фоне, игру не держит ----------
+  maybeWrite() {
+    if (this.writing || this.turnNo < 3 || this.turnNo - this.writer.at < 4) return;
+    this.writing = true;
+    this.ctx.waitUntil(this.write().catch((e) => console.error('writer', e)).finally(() => { this.writing = false; }));
+  }
+  async write() {
+    const taste = await this.loadTaste();
+    const monsters = [...this.players.values()].filter((p) => p.monster).map((p) => `${this.label(p)} — ${p.monster.race}, ${p.monster.title}; слабость: ${p.monster.weakness}; кости: ${p.bones || 0}; легенда: ${p.legend || '—'}`);
+    const at = this.turnNo;
+    const r = await claude(this.env, {
+      system: WRITER_PROMPT, tool: WRITER_TOOL, maxTokens: 1400, timeout: 60000, model: this.env.WRITER_MODEL || 'claude-opus-5-5',
+      user: `Книга мира:\n${LORE}\n\nНовое в мире из прошлых вечеров:\n${(taste.lore || []).join('\n') || 'пока ничего'}\n\nМонстры:\n${monsters.join('\n')}\n\nГде сейчас: ${this.scene}. Места: ${this.places.map((x) => x.name).join(', ')}\nЦель: ${this.goal || '—'}\nЗадания: ${this.quests.map((q) => (q.done ? '[выполнено] ' : '') + q.text).join('; ') || '—'}\n\nЛетопись:\n${this.notes.join('\n') || 'пусто'}\n\nЖурнал (последнее):\n${this.log.slice(-30).map((l) => `${l.who}: ${l.text}`).join('\n')}\n\nИгрокам понравилось:\n${(taste.good || []).map((x) => '- ' + x.text).join('\n') || '—'}\nНе понравилось:\n${(taste.bad || []).map((x) => '- ' + x.text).join('\n') || '—'}\n\nТвоя прошлая шпаргалка: ${this.writer.cheat || '—'}\nТвои повороты сейчас:\n${(this.writer.twists || []).map((t) => `- ${t.id}${t.told ? ' [уже рассказан]' : ''}: намёк «${t.hint}» → развязка «${t.reveal}»`).join('\n') || 'ещё нет, придумай 2-3'}\n\nХод ${at}. Обнови заметки.`,
+    });
+    if (r.error || !r.out) { console.error('writer', r.error); this.writer.at = at; return; }
+    const o = r.out, old = this.writer.twists || [];
+    this.writer = {
+      at,
+      cheat: clean(o.cheat, 650),
+      critique: clean(o.critique, 240),
+      twists: (Array.isArray(o.twists) ? o.twists : []).slice(0, 3).map((t) => {
+        const prev = old.find((x) => x.id === clean(t.id, 30));
+        return { id: clean(t.id, 30), hint: clean(t.hint, 160), reveal: clean(t.reveal, 240), ready: !!t.ready, told: !!prev?.told };
+      }),
+    };
+    this.save();
+    const add = (Array.isArray(o.lore_add) ? o.lore_add : []).slice(0, 3).map((x) => clean(x, 160)).filter(Boolean);
+    if (add.length) { try { this.taste = await this.tasteFetch('/taste', { op: 'lore', add }); } catch (e) { console.error('lore', e); } }
+  }
+
   async lich(ev) {
-    this.cast({ t: 'think', on: true });
+    this.busy = true;
+    try { await this.lichTurn(ev); } finally { this.busy = false; }
+  }
+  async lichTurn(ev) {
+    const idle = ev.kind === 'idle';
+    this.cast({ t: 'think', on: true, idle });
+    const taste = await this.loadTaste();
     const monsters = [...this.players.values()].filter((p) => p.monster).map((p) => ({
       игрок: p.name, имя: p.monster.name, раса: p.monster.race, прозвище: p.monster.title, черты: p.monster.traits,
-      умения: p.monster.skills.map((s) => `${s.name} (${s.die}): ${s.desc}`), амуниция: (p.gear || []).map((i) => p.monster.items?.[i]).filter(Boolean).map((it) => `${it.name}: ${it.desc}`), здоровье: p.monster.hp, слабость: p.monster.weakness, легенда: p.legend,
+      умения: p.monster.skills.map((s) => `${s.name} (${s.die}): ${s.desc}`), амуниция: (p.gear || []).map((i) => p.monster.items?.[i]).filter(Boolean).map((it) => `${it.name}: ${it.desc}`), здоровье: p.monster.hp, кости: p.bones || 0, слабость: p.monster.weakness, легенда: p.legend,
     }));
     const what = ev.kind === 'start' ? 'Игра началась. Встреть монстров в своём логове: коротко представься, подколи каждого по его легенде и предложи первое дело в подземелье.'
       : ev.kind === 'join' ? `К игре присоединился новый монстр: ${ev.who}. Коротко поприветствуй его и встрой в происходящее.`
       : ev.kind === 'roll' ? `${ev.who} бросил ${ev.die}, выпало ${ev.n}. Расскажи, что из этого вышло.`
+      : idle ? `За столом полминуты тишина. Сделай одно живое короткое действие, сюжет не двигай: достань кость и разглядывай её, полистай летопись, поправь усы или подколи того, кто давно молчит${ev.who ? ` (${ev.who})` : ''}. Одна фраза до 120 знаков. Без броска, без костей, без новых мест. Выбери gesture: think, listen или laugh.`
       : `${ev.who} говорит: «${ev.text}». Ответь как мастер.`;
-    const r = await claude(this.env, {
-      system: LICH_PROMPT, tool: LICH_TOOL, maxTokens: 500, timeout: 15000,
-      user: `Монстры за столом:\n${JSON.stringify(monsters)}\n\nГде они сейчас: ${this.scene}\n\nКарта: уже известные места — ${this.places.map((x) => x.name).join(', ')}\n\nЦель сейчас: ${this.goal || 'ещё нет, придумай'}\n\nЗадания сейчас: ${this.quests.map((q) => (q.done ? '[выполнено] ' : '') + q.text).join('; ') || 'ещё нет, придумай'}\n\nЛетопись (что уже было):\n${this.notes.slice(-20).join('\n') || 'пока пусто'}\n\nПоследние события:\n${this.log.slice(-14).map((l) => `${l.who}: ${l.text}`).join('\n') || 'пока ничего'}\n\nСейчас: ${what}`,
-    });
+    const since = this.turnNo - this.bonesAt;
+    const bonesNow = idle ? 'нельзя' : since >= 3 ? 'можно, если есть за что' : `пока рано (давал ${since} ${plural(since, 'ход', 'хода', 'ходов')} назад)`;
+    const w = this.writer, ready = (w.twists || []).filter((t) => t.ready && !t.told), hints = (w.twists || []).filter((t) => !t.ready && !t.told);
+    const extra = [
+      w.cheat && `Шпаргалка сценариста (игроки не видят):\n${w.cheat}`,
+      hints.length && `Скрытые повороты — можно тонко намекнуть:\n${hints.map((t) => '- ' + t.hint).join('\n')}`,
+      ready.length && !idle && `Пора раскрыть (в этой или ближайшей реплике):\n${ready.map((t) => '- ' + t.reveal).join('\n')}`,
+      w.critique && `Замечание редактора к твоим прошлым репликам: ${w.critique}`,
+      (taste.good || []).length && `Игрокам понравилось — так держать:\n${taste.good.map((x) => '- «' + x.text + '»').join('\n')}`,
+      (taste.bad || []).length && `Не понравилось — так не надо:\n${taste.bad.map((x) => '- «' + x.text + '»').join('\n')}`,
+      (taste.lore || []).length && `Новое в мире из прошлых вечеров:\n${taste.lore.slice(-8).join('\n')}`,
+    ].filter(Boolean).join('\n\n');
+    const user = `Монстры за столом:\n${JSON.stringify(monsters)}\n\nГде они сейчас: ${this.scene}\n\nКарта: уже известные места — ${this.places.map((x) => x.name).join(', ')}\n\nЦель сейчас: ${this.goal || 'ещё нет, придумай'}\n\nЗадания сейчас: ${this.quests.map((q) => (q.done ? '[выполнено] ' : '') + q.text).join('; ') || 'ещё нет, придумай'}\n\nЛетопись (что уже было):\n${this.notes.slice(-20).join('\n') || 'пока пусто'}\n\n${extra ? extra + '\n\n' : ''}Последние события:\n${this.log.slice(-14).map((l) => `${l.who}: ${l.text}`).join('\n') || 'пока ничего'}\n\nКости сейчас давать: ${bonesNow}.\n\nСейчас: ${what}`;
+    const r = await claude(this.env, { system: LICH_SYSTEM, tool: LICH_TOOL, maxTokens: 500, timeout: 15000, user });
     this.cast({ t: 'think', on: false });
-    let say, mood = 'ворчит', roll = null;
+    let say, mood = 'ворчит', roll = null, gesture = '';
     if (r.error || !r.out) {
+      if (idle) return;                         // пауза не удалась — просто молчим
       say = 'Кхм. Мозги отсырели. Повтори-ка ещё раз.';
       this.cast({ t: 'error', text: r.error || 'мозги молчат' });
     } else {
       say = clean(r.out.say, 260); mood = r.out.mood || mood;
-      if (r.out.scene) this.scene = clean(r.out.scene, 40);
-      if (r.out.roll && DICE.includes(r.out.roll.die)) {
-        const who = clean(r.out.roll.who, 40).toLowerCase();
-        const target = [...this.players.values()].find((p) => p.monster && (who.includes(p.monster.name.toLowerCase()) || (p.name && who.includes(p.name.toLowerCase()))));
+      if (['think', 'listen', 'laugh', 'map', 'point', 'sixseven'].includes(r.out.gesture)) gesture = r.out.gesture;
+      if (!idle && r.out.scene) this.scene = clean(r.out.scene, 40);
+      if (!idle && r.out.roll && DICE.includes(r.out.roll.die)) {
+        const target = this.findMonster(r.out.roll.who);
         roll = { pid: target?.pid || null, who: clean(r.out.roll.who, 40), die: r.out.roll.die, why: clean(r.out.roll.why, 80) };
       }
     }
-    if (r.out?.give) this.give(r.out.give);
-    if (r.out) {
+    if (r.out && !idle) {
+      this.turnNo++;
+      if (r.out.give) this.give(r.out.give);
+      if (r.out.pay) this.pay(r.out.pay);
+      if (r.out.bones && this.turnNo - 1 - this.bonesAt >= 3) this.award(r.out.bones);
       if (r.out.goal) this.goal = clean(r.out.goal, 80);
       if (Array.isArray(r.out.quests) && r.out.quests.length) this.quests = r.out.quests.slice(0, 4).map((q) => ({ text: clean(q.text, 70), done: !!q.done })).filter((q) => q.text);
       if (r.out.note) { this.notes.push(clean(r.out.note, 140)); if (this.notes.length > 40) this.notes = this.notes.slice(-40); }
       this.paths = (Array.isArray(r.out.paths) ? r.out.paths : []).map((x) => clean(x, 30)).filter(Boolean).slice(0, 3);
       if (r.out.place?.name) this.goto(r.out.place);
+      for (const t of ready) t.told = true;     // развязку отдали — второй раз не подсказываем
     }
+    const after = ev.kind === 'say' ? `${ev.who}: ${clean(ev.text, 120)}` : ev.kind === 'roll' ? `${ev.who} выбросил ${ev.n} на ${ev.die}` : idle ? 'тишина за столом' : ev.kind;
     this.log.push({ who: 'Лич', text: say });
     if (this.log.length > 60) this.log.splice(0, this.log.length - 60);
-    this.lastLich = { id: ++this.seq, text: say, mood, roll };
+    this.lastLich = { id: ++this.seq, text: say, mood, roll, gesture };
+    this.lines = [...this.lines, { id: this.seq, text: say, after }].slice(-20);
     this.cast({ t: 'lich', ...this.lastLich });
     this.state();
+    if (!idle) this.maybeWrite();
   }
 }
 
@@ -503,6 +738,13 @@ export default {
         const room = roomOf(url, 'room');
         if (room.length < 4) return new Response('Bad room code', { status: 400 });
         return env.ROOMS.get(env.ROOMS.idFromName(room)).fetch(request);
+      }
+      if (url.pathname === '/api/world') {
+        let t = {};
+        try { t = await (await env.ROOMS.get(env.ROOMS.idFromName('taste:' + CREW)).fetch('https://taste/taste')).json(); } catch { /* пусто */ }
+        const list = (xs, f) => (xs || []).map(f).join('\n') || '—';
+        const text = `${LORE}\n${list(t.lore, (x) => '- ' + x)}\n\n## Игрокам понравилось\n\n${list(t.good, (x) => '- ' + x.text)}\n\n## Не понравилось\n\n${list(t.bad, (x) => '- ' + x.text)}\n`;
+        return new Response(text, { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' } });
       }
       if (url.pathname === '/api/stt' && request.method === 'POST') return stt(request, env);
       if (url.pathname === '/api/voice' && request.method === 'POST') return voice(request, env);
