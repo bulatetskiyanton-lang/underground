@@ -48,7 +48,7 @@ $('open').addEventListener('click', async () => {
   if (room.length < 4) { try { room = (await (await fetch('/api/new')).json()).room; } catch { room = Math.random().toString(36).slice(2, 7).toUpperCase(); } }
   localStorage.setItem('nk_screen_room', room);
   history.replaceState(null, '', '/screen.html?room=' + room);
-  $('gate').hidden = true; $('gate').style.display = 'none'; $('app').hidden = false;
+  $('gate').hidden = true; $('gate').style.display = 'none'; $('app').hidden = false; $('app').classList.add('inkwait'); setTimeout(() => { if (!$('stage').classList.contains('intro')) inkAll(); }, 700);
   $('code').textContent = room;
   const url = location.origin + '/?room=' + room;
   $('url').textContent = url.replace(/^https?:\/\//, '');
@@ -96,10 +96,11 @@ function onMsg(m) {
 // ---------- монстры и комната ----------
 function renderState() {
   $('scene').textContent = state.scene || 'Логово лича';
-  $('goal').textContent = state.goal || ''; $('goalsign').hidden = !state.goal;
+  if ((state.goal || '') !== $('goal').textContent) { const wasHidden = $('goalsign').hidden; $('goal').textContent = state.goal || ''; $('goalsign').hidden = !state.goal; if (state.goal) brush(wasHidden ? $('goalsign') : $('goal'), wasHidden ? 0 : 150); }
   const qs = (state.quests || []).slice(0, 3);
+  if ($('questnote').hidden && qs.length) { $('questnote').hidden = false; brush($('questnote')); }
   $('questnote').hidden = !qs.length;
-  $('quests').innerHTML = qs.map((q, i) => `<div class="q ${q.done ? 'done' : ''}" style="top:${[44.5, 60.4, 76.3][i]}%"><i></i><span>${esc(q.text)}</span></div>`).join('');
+  $('quests').innerHTML = qs.map((q, i) => `<div class="q ${q.done ? 'done' : ''}" style="top:${[44.5, 60.4, 76.3][i]}%"><i></i><span${inkAttr('q:' + q.text + (q.done ? ':1' : ''), 500 + i * 220)}>${esc(q.text)}</span></div>`).join('');
   drawMap();
   const cp = (state.places || [])[state.cur];
   if (cp && cp.v && sceneShown !== state.cur + ':' + cp.v) showScene({ i: state.cur, name: cp.name, v: cp.v }, false);
@@ -116,6 +117,39 @@ function renderState() {
   document.querySelectorAll('.giftcard.sealcard[data-pid]').forEach((c) => { const p = ps.find((x) => x.pid === c.dataset.pid); if (p && p.pv) { const ph = c.querySelector('.ph'); ph.style.backgroundImage = `url('/api/portrait?room=${room}&pid=${encodeURIComponent(p.pid)}&v=${p.pv}')`; ph.textContent = ''; } });
   $('log').innerHTML = (state.log || []).slice(-3).map((l) => `<div><b>${esc(l.who)}</b> ${esc(l.text)}</div>`).join('');
 }
+// ---------- кисть: интерфейс прорисовывается мазком, карта — пером ----------
+const born = {}, INK = 1500;
+function bornAgo(key) { const now = performance.now(); if (!(key in born)) born[key] = now; return now - born[key]; }
+// для того, что перерисовывается каждый раз (карты, строки заданий): анимация идёт по часам, а не заново
+function inkAttr(key, delay) { const ago = bornAgo(key); return ago < INK + delay + 100 ? ` data-ink style="--inkd:${Math.round(delay - ago)}ms"` : ''; }
+function brush(el, delay = 0) {
+  if (!el || el.hidden) return;
+  el.removeAttribute('data-ink'); void el.offsetWidth;
+  el.style.setProperty('--inkd', delay + 'ms'); el.setAttribute('data-ink', '');
+  clearTimeout(el._inkT); el._inkT = setTimeout(() => el.removeAttribute('data-ink'), INK + delay + 80);
+}
+function inkAll() {
+  let d = 0;
+  brush($('codetag'), d); d += 260; brush($('joinhint'), d); d += 200;
+  document.querySelectorAll('#players .mc').forEach((c) => { brush(c, d); d += 380; });
+  brush($('goalsign'), d); d += 320;
+  const mb = document.querySelector('#hudR .mapbox'); brush(mb, d);
+  for (const k in born) if (k.startsWith('room:')) delete born[k];   // карта: комнаты дорисовываются пером вслед за листом
+  setTimeout(() => { if (state.map) drawMap(); }, d + 500); d += 360;
+  brush($('questnote'), d); d += 340; brush($('hudD'), d); d += 260; brush($('plate'), d);
+  $('app').classList.remove('inkwait');
+}
+function inkMap(svg) {
+  [...svg.querySelectorAll('g.room')].forEach((g, i) => {
+    const key = 'room:' + g.dataset.room + ':' + (g.getAttribute('class') || '').replace(/\b(on|can|cur)\b/g, '').trim();
+    const ago = bornAgo(key);
+    if (ago > 1800) return;
+    const r = g.querySelector('rect'); if (!r) return;
+    r.setAttribute('pathLength', '100');
+    g.classList.add('pen'); g.style.setProperty('--pd', Math.round(i * 90 - ago) + 'ms');
+  });
+}
+
 // карта монстра по мастеру A: лицо (портрет, имя, здоровье, вещи с собой) и оборот (умения, кости, все вещи)
 const looking = {}, lookT = {};
 function monsterCard(p, m, img) {
@@ -123,7 +157,7 @@ function monsterCard(p, m, img) {
   const gear = (p.gear || []).map(it).filter(Boolean);
   const ic = (x) => (x ? `<img src="/img/items/${esc(x.kind)}.webp" alt="${esc(x.name)}" title="${esc(x.name)}">` : '');
   const sk = (m.skills || []).slice(0, 3);
-  return `<div class="mc ${looking[p.pid] ? 'flip' : ''} ${listening.has(p.pid) ? 'live' : ''}" data-pid="${esc(p.pid)}" title="${esc(m.name)} · ${esc(m.title || '')}${p.online ? '' : ' · не в сети'}"><div class="mc-in">
+  return `<div class="mc ${looking[p.pid] ? 'flip' : ''} ${listening.has(p.pid) ? 'live' : ''}"${inkAttr('mc:' + p.pid, 0)} data-pid="${esc(p.pid)}" title="${esc(m.name)} · ${esc(m.title || '')}${p.online ? '' : ' · не в сети'}"><div class="mc-in">
     <div class="mc-f"><img class="fr" src="/img/ui/v/mcard.svg" alt=""><i class="pt" ${img}>${p.pv ? '' : esc(m.name[0] || '?')}</i><b class="nm">${esc(m.name)}</b><span class="hpv">${m.hp}</span><span class="bn"><img src="/img/items/bone.webp" alt="">${p.bones || 0}</span>${[0, 1, 2].map((k) => `<span class="it it${k + 1}">${ic(gear[k])}</span>`).join('')}</div>
     <div class="mc-b"><img class="fr" src="/img/ui/v/mcard_back.svg" alt=""><i class="md" ${img}></i><span class="st st1">${m.hp}</span><span class="st st2">${p.bones || 0}</span><span class="st st3">${gear.length}</span>${sk.map((x, k) => `<span class="sk sk${k + 1}">${esc(x.name)} · ${esc(x.die)}</span>`).join('')}${[0, 1, 2, 3, 4, 5].map((k) => `<span class="sl sl${k + 1} ${(p.gear || []).includes(k) ? 'on' : ''}">${ic(it(k))}</span>`).join('')}</div>
   </div></div>`;
@@ -192,6 +226,7 @@ function drawMap() {
     const ps = (state.players || []).filter((p) => p.monster).map((p) => ({ name: p.monster.name, img: p.pv ? `/api/portrait?room=${room}&pid=${encodeURIComponent(p.pid)}&v=${p.pv}` : '' }));
     const svg = $('map'); svg.setAttribute('viewBox', `0 0 ${NKMap.size} ${NKMap.size}`); svg.classList.add('rooms');
     svg.innerHTML = NKMap.draw(state.map, { players: ps });
+    inkMap(svg);
     return;
   }
   const P = state.places || [], E = state.edges || [], cur = state.cur || 0, paths = state.paths || [];
@@ -497,6 +532,7 @@ function finishIntro(natural) {
   intro = null; introDone = true;
   Object.assign(iv, { holeC: 2, holeS: 2, dim: 1, lift: 0, boost: 1, eyes: true });
   $('stage').classList.remove('intro', 'talking');
+  setTimeout(inkAll, 250);   // после интро интерфейс прорисовывается кистью
   vv.concat([...$('stage').querySelectorAll('canvas.fx')]).forEach((e) => { e.style.transform = ''; });
   const ctx = $('introc').getContext('2d'); ctx.clearRect(0, 0, $('introc').width, $('introc').height);
   send({ t: 'intro', on: false });
