@@ -21,7 +21,7 @@ const LICH_PROMPT = `Ты — старый лич на пенсии, масте�
 Характер: ворчливый, язвительный, с чёрным юмором, но за своих болеешь. Говоришь живо и разговорно, рублеными фразами: ворчишь, ахаешь, хрипло посмеиваешься («кхе-кхе»), возмущаешься.
 
 Правила реплики:
-- Очень коротко: одно-три предложения, не больше 260 знаков. Это озвучивается голосом.
+- Очень коротко: одно-два предложения, не больше 180 знаков. Это озвучивается голосом, длинное слушать скучно. Лучше недосказать и спросить, чем расписать.
 - Без списков, звёздочек, эмодзи и ремарок в скобках.
 - Обращайся к монстрам по именам. Используй их умения, слабости и легенды.
 - Часто заканчивай вопросом или выбором: что делаешь дальше?
@@ -36,7 +36,7 @@ const LICH_TOOL = {
   input_schema: {
     type: 'object',
     properties: {
-      say: { type: 'string', description: 'Что лич говорит вслух, до 260 знаков' },
+      say: { type: 'string', description: 'Что лич говорит вслух: 1-2 предложения, до 180 знаков' },
       mood: { type: 'string', enum: ['ворчит', 'смеётся', 'злится', 'шепчет', 'доволен'] },
       scene: { type: 'string', description: 'Где сейчас монстры, 2-4 слова' },
       roll: {
@@ -240,7 +240,11 @@ export class Room {
     }
   }
 
-  label(p) { return p.monster?.name ? `${p.monster.name} (${p.name || 'игрок'})` : (p.name || 'Игрок'); }
+  label(p) {
+    const m = p.monster?.name;
+    if (!m) return p.name || 'Игрок';
+    return !p.name || p.name.toLowerCase() === m.toLowerCase() ? m : `${m} (${p.name})`;
+  }
 
   rolled(pid, die, n) {
     const p = this.players.get(pid);
@@ -312,7 +316,7 @@ export class Room {
       say = 'Кхм. Мозги отсырели. Повтори-ка ещё раз.';
       this.cast({ t: 'error', text: r.error || 'мозги молчат' });
     } else {
-      say = clean(r.out.say, 320); mood = r.out.mood || mood;
+      say = clean(r.out.say, 260); mood = r.out.mood || mood;
       if (r.out.scene) this.scene = clean(r.out.scene, 40);
       if (r.out.roll && DICE.includes(r.out.roll.die)) {
         const who = clean(r.out.roll.who, 40).toLowerCase();
@@ -345,7 +349,10 @@ async function stt(request, env) {
   try {
     let res = await call(env.STT_MODEL || 'scribe_v2');
     if (!res.ok && (res.status === 400 || res.status === 422)) res = await call('scribe_v1');
-    if (!res.ok) return Response.json({ error: `ElevenLabs ${res.status}: ${(await res.text()).slice(0, 200)}` }, { status: 502 });
+    if (!res.ok) {
+      const body = (await res.text()).slice(0, 300);
+      return Response.json({ error: /missing the permission|missing_permissions/.test(body) ? 'У ключа ElevenLabs выключено распознавание речи. В ElevenLabs: Developers → API Keys → ключ → Edit → включи Speech to Text' : `ElevenLabs ${res.status}: ${body.slice(0, 160)}` }, { status: 502 });
+    }
     const j = await res.json();
     return Response.json({ text: clean(j.text, 600) });
   } catch (e) { return Response.json({ error: `распознавание: ${String(e.message || e)}` }, { status: 502 }); }
@@ -367,7 +374,11 @@ async function voice(request, env) {
   try {
     let res = await call(env.VOICE_MODEL || 'eleven_flash_v2_5');
     if (!res.ok && (res.status === 400 || res.status === 422)) res = await call('eleven_multilingual_v2');
-    if (!res.ok) return new Response(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 200)}`, { status: 502 });
+    if (!res.ok) {
+      const body = (await res.text()).slice(0, 300);
+      const msg = /missing the permission|missing_permissions/.test(body) ? 'у ключа ElevenLabs выключена озвучка. В ElevenLabs открой Developers → API Keys → свой ключ → Edit и включи Text to Speech и Speech to Text' : `ElevenLabs ${res.status}: ${body.slice(0, 160)}`;
+      return new Response(msg, { status: 502 });
+    }
     return new Response(res.body, { headers: { 'content-type': 'audio/mpeg', 'cache-control': 'no-store' } });
   } catch (e) { return new Response(`голос: ${String(e.message || e)}`, { status: 502 }); }
 }

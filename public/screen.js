@@ -68,11 +68,11 @@ function renderState() {
   }).join('') || '<div class="url">Пока никого. Наведи камеру телефона на код.</div>';
   const ready = ps.some((p) => p.monster);
   $('start').hidden = state.started || !ready;
-  $('log').innerHTML = (state.log || []).slice(-7).map((l) => `<div><b>${esc(l.who)}</b> ${esc(l.text)}</div>`).join('');
+  $('log').innerHTML = (state.log || []).slice(-6).map((l) => `<div><b>${esc(l.who)}</b> ${esc(l.text)}</div>`).join('');
 }
 function addLog(who, text) {
   const d = document.createElement('div'); d.innerHTML = `<b>${esc(who)}</b> ${esc(text)}`;
-  $('log').appendChild(d); while ($('log').children.length > 7) $('log').firstChild.remove();
+  $('log').appendChild(d); while ($('log').children.length > 6) $('log').firstChild.remove();
 }
 $('start').addEventListener('click', () => { send({ t: 'start' }); $('start').hidden = true; });
 function showAsk(roll) { $('ask').textContent = roll ? `${roll.who}: бросай ${roll.die} — ${roll.why}` : ''; }

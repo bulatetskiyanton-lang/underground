@@ -47,7 +47,8 @@ aside{padding:16px;display:flex;flex-direction:column;gap:14px;overflow:hidden;m
 .rack button[aria-pressed="true"]{border-color:var(--candle);color:var(--candle);animation:pulse 1.8s ease-in-out infinite}
 .power{height:14px;border:2px solid var(--hatch);background:#0d0a07}
 .power i{display:block;height:100%;width:0;background:repeating-linear-gradient(135deg,var(--candle) 0 2px,transparent 2px 5px)}
-#log{display:grid;gap:6px;font-size:15px;line-height:1.25;color:var(--ink-soft);overflow:hidden}
+#log{display:flex;flex-direction:column;justify-content:flex-end;gap:8px;font-size:15px;line-height:1.25;color:var(--ink-soft);overflow:hidden}
+#log div{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;flex:none}
 #log b{font-family:var(--label);letter-spacing:.06em;color:var(--soul);font-weight:700}
 #err{font-size:14px;color:var(--blood);min-height:18px}
 .grow{flex:1;min-height:0}
