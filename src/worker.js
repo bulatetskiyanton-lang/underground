@@ -19,7 +19,7 @@ const LICH_PROMPT = `Ты — старый лич на пенсии, масте�
 
 Ты ведёшь игру как мастер настольной ролевой игры: описываешь, что происходит, отвечаешь на действия игроков, просишь бросить кубик, когда исход неясен, и рассказываешь результат.
 
-Характер: ворчливый, язвительный, с чёрным юмором, но за своих болеешь. Говоришь живо и разговорно, рублеными фразами: ворчишь, ахаешь, хрипло посмеиваешься («кхе-кхе»), возмущаешься.
+Характер: ворчливый, язвительный, с чёрным юмором, но за своих болеешь. Говоришь живо и разговорно, рублеными фразами: ворчишь, ахаешь, возмущаешься. Никакого «кхе-кхе» и кашля. Вместо этого у тебя свои монстрячьи присказки, чередуй и придумывай новые в том же духе: «Гниль да плесень!», «Чтоб мне рассыпаться!», «Мох тебе в глазницы!», «Клянусь филактерией!», «Тьфу, герои!», «Червь меня догрызи!», «Кости мои старые…». Присказка не в каждой реплике и не всегда в начале; две реплики подряд с одной и той же не начинай.
 
 Правила реплики:
 - Очень коротко: одно-два предложения, не больше 180 знаков. Это озвучивается голосом, длинное слушать скучно. Лучше недосказать и спросить, чем расписать.
@@ -32,7 +32,8 @@ const LICH_PROMPT = `Ты — старый лич на пенсии, масте�
 - Когда монстры приходят в новое место или происходит что-то, что стоит показать, заполни place: название места и описание картинки по-английски. Картинка появится на экране, а место — на карте. Не чаще раза в два-три хода.
 - У монстров всегда есть цель: заполняй goal — что им сейчас надо сделать. Если случилось важное (нашли, потеряли, победили, сбежали, узнали), запиши одной фразой в note — это летопись, по ней ты помнишь весь путь.
 - Когда есть развилка, заполни paths: два-три коротких варианта, куда пойти дальше. Они появятся на карте и у игроков кнопками.
-- Если по сюжету монстр что-то находит, получает или крадёт (осколок, ключ, зелье, кость, монету) — заполни give: кому и что. Вещь сразу появится у него в амуниции. Дари редко и со смыслом, не чаще раза в несколько ходов.
+- Если по сюжету монстр что-то находит, получает или крадёт (осколок, ключ, зелье, кость, монету) — заполни give: кому и что. Вещь сразу появится у него в амуниции. Дари редко и со смыслом, не чаще раза в несколько ходов. У каждой вещи должно быть понятное применение: в desc напиши, что ею можно сделать, начиная с глагола («Открыть одну запертую дверь», «Отвлечь стражу на один ход»). Когда даришь, одной фразой скажи вслух, на что она годится. Если монстр спрашивает, что делать с вещью, — ответь прямо и подскажи, где она пригодится сейчас.
+- Веди список заданий quests: от одного до четырёх коротких заданий, которые сейчас стоят перед монстрами (главное и побочные, у соседей тоже бывают просьбы). Отдавай список целиком, когда он изменился: новое задание, выполнено (done: true), провалено — убери.
 - Говори на том языке, на котором говорят игроки (русский или украинский).`;
 
 const LICH_TOOL = {
@@ -52,6 +53,7 @@ const LICH_TOOL = {
       },
       goal: { type: 'string', description: 'Текущая цель монстров одной короткой фразой, до 60 знаков. Заполняй всегда.' },
       note: { type: 'string', description: 'Запись в летопись: что важного только что случилось, одна фраза. Только если случилось.' },
+      quests: { type: 'array', description: 'Список заданий целиком, 1-4 штуки. Только когда изменился.', items: { type: 'object', properties: { text: { type: 'string', description: 'Задание, до 50 знаков' }, done: { type: 'boolean' } }, required: ['text'] } },
       paths: { type: 'array', items: { type: 'string' }, description: 'До трёх вариантов, куда идти дальше, по 1-3 слова' },
       give: {
         type: 'object',
@@ -59,7 +61,7 @@ const LICH_TOOL = {
         properties: {
           who: { type: 'string', description: 'Имя монстра' },
           name: { type: 'string', description: 'Название вещи, 1-3 слова' },
-          desc: { type: 'string', description: 'Что даёт или чем странна, до 60 знаков' },
+          desc: { type: 'string', description: 'Что этой вещью можно сделать: конкретное действие с глагола, до 70 знаков' },
           kind: { type: 'string', enum: ITEM_KINDS },
         },
         required: ['who', 'name', 'desc', 'kind'],
@@ -100,7 +102,7 @@ const MONSTER_TOOL = {
         description: 'Ровно 6 предметов амуниции на выбор, под характер и легенду монстра, смешные и полезные',
         items: {
           type: 'object',
-          properties: { name: { type: 'string', description: 'Название, 1-3 слова' }, desc: { type: 'string', description: 'Что даёт, до 60 знаков' }, kind: { type: 'string', enum: ITEM_KINDS, description: 'На что похож: зелье, ключ, свиток, кинжал, монеты, кость, фонарь, лопата, гриб, книга, сундук, верёвка, бомба, сыр, череп, карта. Все 6 разные' } },
+          properties: { name: { type: 'string', description: 'Название, 1-3 слова' }, desc: { type: 'string', description: 'Что этой вещью можно сделать: конкретное действие с глагола, до 70 знаков' }, kind: { type: 'string', enum: ITEM_KINDS, description: 'На что похож: зелье, ключ, свиток, кинжал, монеты, кость, фонарь, лопата, гриб, книга, сундук, верёвка, бомба, сыр, череп, карта. Все 6 разные' } },
           required: ['name', 'desc', 'kind'],
         },
       },
@@ -176,6 +178,7 @@ export class Room {
     this.paths = [];
     this.goal = '';
     this.notes = [];
+    this.quests = [];
     this.lastLich = null;
     this.chain = Promise.resolve();
     this.seq = 0;
@@ -186,7 +189,7 @@ export class Room {
           this.players = new Map(s.players.map((p) => [p.pid, { ...p, online: false, making: false }]));
           this.log = s.log || []; this.started = !!s.started; this.scene = s.scene || this.scene; this.lastLich = s.lastLich || null;
           if (s.places?.length) { this.places = s.places; this.edges = s.edges || []; this.cur = s.cur || 0; this.paths = s.paths || []; }
-          this.goal = s.goal || ''; this.notes = s.notes || [];
+          this.goal = s.goal || ''; this.notes = s.notes || []; this.quests = s.quests || [];
         }
       } catch (e) { console.error('restore', e); }
     });
@@ -196,7 +199,7 @@ export class Room {
     if (this.saveTimer) return;
     this.saveTimer = setTimeout(async () => {
       this.saveTimer = null;
-      try { await this.ctx.storage.put('snap', { players: [...this.players.values()], log: this.log.slice(-40), started: this.started, scene: this.scene, lastLich: this.lastLich, places: this.places, edges: this.edges, cur: this.cur, paths: this.paths, goal: this.goal, notes: this.notes.slice(-6), goal: this.goal, notes: this.notes }); } catch (e) { console.error('save', e); }
+      try { await this.ctx.storage.put('snap', { players: [...this.players.values()], log: this.log.slice(-40), started: this.started, scene: this.scene, lastLich: this.lastLich, places: this.places, edges: this.edges, cur: this.cur, paths: this.paths, goal: this.goal, notes: this.notes, quests: this.quests }); } catch (e) { console.error('save', e); }
     }, 400);
   }
 
@@ -241,7 +244,7 @@ export class Room {
 
   view() {
     return {
-      t: 'state', started: this.started, scene: this.scene, lich: this.lastLich, places: this.places, edges: this.edges, cur: this.cur, paths: this.paths, goal: this.goal, notes: this.notes.slice(-6),
+      t: 'state', started: this.started, scene: this.scene, lich: this.lastLich, places: this.places, edges: this.edges, cur: this.cur, paths: this.paths, goal: this.goal, notes: this.notes.slice(-6), quests: this.quests,
       players: [...this.players.values()].map((p) => ({ pid: p.pid, name: p.name, race: p.race, monster: p.monster, gear: p.gear || [], fresh: p.fresh ?? -1, making: !!p.making, online: !!p.online, pv: p.pv || 0 })),
       log: this.log.slice(-8),
     };
@@ -267,7 +270,7 @@ export class Room {
     if (c.role === 'screen') {
       if (m.t === 'start') { this.started = true; this.state(); this.turn({ kind: 'start' }); }
       else if (m.t === 'rolled') this.rolled(m.pid, m.die, m.n);
-      else if (m.t === 'reset') { this.players.clear(); this.log = []; this.started = false; this.lastLich = null; this.scene = 'Логово лича'; this.places = [{ name: 'Логово лича', v: 0 }]; this.edges = []; this.cur = 0; this.paths = []; this.goal = ''; this.notes = []; this.state(); }
+      else if (m.t === 'reset') { this.players.clear(); this.log = []; this.started = false; this.lastLich = null; this.scene = 'Логово лича'; this.places = [{ name: 'Логово лича', v: 0 }]; this.edges = []; this.cur = 0; this.paths = []; this.goal = ''; this.notes = []; this.quests = []; this.state(); }
       return;
     }
     const p = this.players.get(c.pid);
@@ -404,8 +407,8 @@ export class Room {
       : ev.kind === 'roll' ? `${ev.who} бросил ${ev.die}, выпало ${ev.n}. Расскажи, что из этого вышло.`
       : `${ev.who} говорит: «${ev.text}». Ответь как мастер.`;
     const r = await claude(this.env, {
-      system: LICH_PROMPT, tool: LICH_TOOL, maxTokens: 350, timeout: 15000,
-      user: `Монстры за столом:\n${JSON.stringify(monsters)}\n\nГде они сейчас: ${this.scene}\n\nКарта: уже известные места — ${this.places.map((x) => x.name).join(', ')}\n\nЦель сейчас: ${this.goal || 'ещё нет, придумай'}\n\nЛетопись (что уже было):\n${this.notes.slice(-20).join('\n') || 'пока пусто'}\n\nПоследние события:\n${this.log.slice(-14).map((l) => `${l.who}: ${l.text}`).join('\n') || 'пока ничего'}\n\nСейчас: ${what}`,
+      system: LICH_PROMPT, tool: LICH_TOOL, maxTokens: 500, timeout: 15000,
+      user: `Монстры за столом:\n${JSON.stringify(monsters)}\n\nГде они сейчас: ${this.scene}\n\nКарта: уже известные места — ${this.places.map((x) => x.name).join(', ')}\n\nЦель сейчас: ${this.goal || 'ещё нет, придумай'}\n\nЗадания сейчас: ${this.quests.map((q) => (q.done ? '[выполнено] ' : '') + q.text).join('; ') || 'ещё нет, придумай'}\n\nЛетопись (что уже было):\n${this.notes.slice(-20).join('\n') || 'пока пусто'}\n\nПоследние события:\n${this.log.slice(-14).map((l) => `${l.who}: ${l.text}`).join('\n') || 'пока ничего'}\n\nСейчас: ${what}`,
     });
     this.cast({ t: 'think', on: false });
     let say, mood = 'ворчит', roll = null;
@@ -424,6 +427,7 @@ export class Room {
     if (r.out?.give) this.give(r.out.give);
     if (r.out) {
       if (r.out.goal) this.goal = clean(r.out.goal, 80);
+      if (Array.isArray(r.out.quests) && r.out.quests.length) this.quests = r.out.quests.slice(0, 4).map((q) => ({ text: clean(q.text, 70), done: !!q.done })).filter((q) => q.text);
       if (r.out.note) { this.notes.push(clean(r.out.note, 140)); if (this.notes.length > 40) this.notes = this.notes.slice(-40); }
       this.paths = (Array.isArray(r.out.paths) ? r.out.paths : []).map((x) => clean(x, 30)).filter(Boolean).slice(0, 3);
       if (r.out.place?.name) this.goto(r.out.place);

@@ -148,6 +148,7 @@
     $('take').disabled = !it || (!has && gear.length >= 3);
     $('take').textContent = has ? 'Выложить' : 'Взять';
     $('use').disabled = !it || !has;
+    $('askitem').disabled = !it;
     if (items.length && gear.length < 3) ping('gear');
   }
   $('slots').addEventListener('click', function (e) { var b = e.target.closest('button.slot'); if (!b) return; selItem = Number(b.dataset.i); drawGear(); });
@@ -156,6 +157,7 @@
     if (k >= 0) gear.splice(k, 1); else if (gear.length < 3) gear.push(selItem);
     me.gear = gear; drawGear(); send({ t: 'gear', idx: gear });
   });
+  $('askitem').addEventListener('click', function () { if (selItem < 0) return; var it = me.monster.items[selItem]; send({ t: 'say', text: 'Лич, что можно сделать с вещью «' + it.name + '»? Где она мне сейчас пригодится?' }); $('heard').textContent = 'Ты спросил про: ' + it.name; setTab('talk'); });
   $('use').addEventListener('click', function () { if (selItem < 0) return; send({ t: 'use', i: selItem }); $('heard').textContent = 'Ты достал: ' + me.monster.items[selItem].name; setTab('talk'); });
 
   // ---------- кубики: печать зажал — сила копится, отпустил — бросок ----------
@@ -187,6 +189,7 @@
   th.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
   function drawPaths() {
+    var qs = state.quests || []; $('quests').hidden = !qs.length; $('quests').innerHTML = qs.length ? '<small>Задания</small>' + qs.map(function (q) { return '<div class="' + (q.done ? 'done' : '') + '"><i></i><span>' + esc(q.text) + '</span></div>'; }).join('') : '';
     $('goal').hidden = !state.goal; $('goal').innerHTML = state.goal ? '<small>Что делать</small>' + esc(state.goal) : '';
     var ps = state.paths || [];
     $('paths').innerHTML = ps.length ? '<div class="label" style="text-align:center">Куда идём</div>' + ps.map(function (t, i) { return '<button type="button" class="btn" data-p="' + i + '">' + esc(t) + '</button>'; }).join('') : '';

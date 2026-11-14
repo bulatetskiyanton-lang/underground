@@ -63,7 +63,7 @@ function onMsg(m) {
 // ---------- монстры и комната ----------
 function renderState() {
   $('scene').textContent = state.scene || 'Логово лича';
-  $('goal').textContent = state.goal ? 'Цель: ' + state.goal : '';
+  $('goal').innerHTML = (state.goal ? 'Цель: ' + esc(state.goal) : '') + (state.quests || []).map((q) => '<br>' + (q.done ? '☑ ' : '☐ ') + esc(q.text)).join('');
   drawMap();
   const cp = (state.places || [])[state.cur];
   if (cp && cp.v && sceneShown !== state.cur + ':' + cp.v) showScene({ i: state.cur, name: cp.name, v: cp.v }, false);
@@ -142,12 +142,12 @@ function stopSpeak() { speakSeq++; if (curAudio) { try { curAudio.pause(); } cat
 // подхваты: короткие фразы, записанные заранее, чтобы не было тишины, пока лич думает
 const QUIPS = {
   roll: ['Ну, посмотрим, что там у тебя.', 'Кати, кати, не тяни.', 'Кости не врут. В отличие от тебя.', 'Ох, сейчас будет смешно.', 'Давай, удиви старика.'],
-  think: ['Хм. Дай подумать.', 'Так-так-так.', 'Кхе. Любопытно.', 'Погоди, не торопи старика.'],
+  think: ['Хм. Дай подумать.', 'Так-так-так.', 'Гниль да плесень. Любопытно.', 'Погоди, не торопи старика.'],
 };
 const quipBlob = {};
 let lastQuip = '';
 async function loadQuips() {
-  let cache = null; try { cache = await caches.open('nk-quips-1'); } catch { /* без кэша */ }
+  let cache = null; try { cache = await caches.open('nk-quips-2'); } catch { /* без кэша */ }
   for (const text of [...QUIPS.roll, ...QUIPS.think]) {
     try {
       const key = '/quip/' + encodeURIComponent(text);

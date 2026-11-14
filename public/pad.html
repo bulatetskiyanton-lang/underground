@@ -109,6 +109,12 @@ form{display:grid;grid-template-columns:1fr auto;gap:8px}
 
 #goal{padding:10px 14px;font-size:15px;line-height:1.25;text-align:center}
 #goal small{display:block;font-family:var(--label);font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:11px;color:#7a2a12}
+#quests{padding:10px 14px;font-size:15px;line-height:1.3}
+#quests small{display:block;font-family:var(--label);font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:11px;color:#7a2a12;text-align:center;margin-bottom:4px}
+#quests div{display:grid;grid-template-columns:20px 1fr;gap:6px;align-items:start}
+#quests div.done{color:#8a7b62;text-decoration:line-through}
+#quests i{width:14px;height:14px;margin-top:3px;border:2px solid var(--ink-dark);display:block}
+#quests .done i{background:var(--ink-dark)}
 /* вкладки */
 #tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;background:#0d0a07;border-top:3px solid var(--ink-soft);box-shadow:0 -3px 0 0 #0d0a07,0 -5px 0 0 var(--hatch);padding:10px 0 calc(8px + env(safe-area-inset-bottom))}
 #tabs::before{content:"";position:absolute;left:0;right:0;top:3px;height:6px;background:repeating-linear-gradient(135deg,var(--hatch) 0 1px,transparent 1px 5px)}
@@ -165,6 +171,7 @@ body.play{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
       <div class="paper orn"><div class="slots" id="slots"></div></div>
       <div class="paper"><div class="detail" id="detail"></div></div>
       <div class="grid2"><button class="btn" id="take" type="button" disabled>Взять</button><button class="btn main" id="use" type="button" disabled>Использовать</button></div>
+      <button class="btn" id="askitem" type="button" disabled>Спросить у лича, зачем она</button>
     </div>
 
     <div class="tab" id="t-dice" hidden>
@@ -181,6 +188,7 @@ body.play{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
       <button class="sealbtn" id="talk" type="button" aria-label="Зажми и говори"></button>
       <div class="seal-label">Зажми печать и говори. Отпустил — лич услышал.</div>
       <div id="goal" class="paper" hidden></div>
+      <div id="quests" class="paper" hidden></div>
       <div id="paths" class="row"></div>
       <div id="heard"></div>
       <form id="form"><input id="txt" type="text" autocomplete="off" placeholder="или напиши текстом" aria-label="Сообщение личу"><button class="btn" type="submit">Сказать</button></form>
