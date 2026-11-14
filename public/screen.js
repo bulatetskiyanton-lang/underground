@@ -31,6 +31,7 @@ $('open').addEventListener('click', async () => {
   $('url').textContent = url.replace(/^https?:\/\//, '');
   try { const q = qrcode(0, 'M'); q.addData(url); q.make(); $('qr').innerHTML = q.createSvgTag({ cellSize: 6, margin: 1, scalable: true }); } catch { $('qr').textContent = ''; }
   initDice();
+  startVideo();
   connect();
   requestAnimationFrame(frame);
 });
@@ -125,13 +126,23 @@ const frames = {}; document.querySelectorAll('#stage img.f').forEach((i) => { fr
 let curFrame = 'closed';
 function setFrame(f) { if (f === curFrame) return; frames[curFrame].classList.remove('on'); frames[f].classList.add('on'); curFrame = f; }
 
+// видео-петли: «покой» и «говорит». Если видео не играет — остаются кадры.
+const vIdle = $('v-idle'), vTalk = $('v-talk');
+let videoOk = false, talkHold = 0;
+function startVideo() {
+  Promise.all([vIdle.play(), vTalk.play()]).then(() => { videoOk = true; $('stage').classList.add('video'); }).catch(() => { videoOk = false; });
+}
+function setVideo(talk) { vTalk.classList.toggle('on', talk); vIdle.classList.toggle('on', !talk); }
+
 let lastT = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - lastT) / 1000 || 0.016); lastT = now;
   pollPad(now);
   let f = 'closed';
   if (speaking) {
-    f = ['closed', 'half', 'open'][mouthLevel(now)];
+    const lv = mouthLevel(now);
+    f = ['closed', 'half', 'half'][lv];          // рот открываем мягко, без широкого кадра
+    if (lv > 0) talkHold = now + 260;
     const t = curAudio ? curAudio.currentTime : (now - lineT0) / 1000;
     const k = Math.min(lineText.length, Math.round(lineText.length * Math.min(1, t / (lineDur || 1))));
     $('said').textContent = lineText.slice(0, k); $('rest').textContent = lineText.slice(k);
@@ -142,6 +153,9 @@ function frame(now) {
     if (now < blinkUntil) f = 'blink';
   }
   setFrame(f);
+  if (videoOk) setVideo(speaking && now < talkHold);
+  $('stage').classList.toggle('hear', !speaking && listening.size > 0);
+  $('stage').classList.toggle('muse', !speaking && !listening.size && thinking);
   NKDice.step(now, dt);
   requestAnimationFrame(frame);
 }

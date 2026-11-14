@@ -20,6 +20,14 @@ aside{padding:16px;display:flex;flex-direction:column;gap:14px;overflow:hidden;m
 #stage{height:100vh;aspect-ratio:1440/1075;max-width:calc(100vw - 480px);position:relative;align-self:center;background:#000;border-left:4px solid var(--plate);border-right:4px solid var(--plate)}
 #stage img.f{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;visibility:hidden}
 #stage img.f.on{visibility:visible}
+#stage video.v{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .18s linear;display:none}
+#stage.video video.v{display:block}
+#stage.video video.v.on{opacity:1}
+#stage.video img.f{visibility:hidden!important}
+#stage.video img.f[data-f="closed"]{visibility:visible!important}
+#stage::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 0 transparent;transition:box-shadow .3s}
+#stage.hear::after{box-shadow:inset 0 0 90px 10px rgba(63,214,192,.35)}
+#stage.muse::after{box-shadow:inset 0 0 90px 10px rgba(240,150,43,.28)}
 #gl{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 #res{position:absolute;right:14px;top:14px;font-family:var(--display);font-size:34px;padding:6px 14px;background:rgba(20,16,12,.9);border:2px solid var(--candle);color:var(--candle)}
 #res:empty{display:none}
@@ -87,6 +95,8 @@ aside{padding:16px;display:flex;flex-direction:column;gap:14px;overflow:hidden;m
     <img class="f" data-f="blink" src="/img/lich_blink.webp" alt="">
     <img class="f" data-f="listen" src="/img/lich_listen.webp" alt="">
     <img class="f" data-f="think" src="/img/lich_think.webp" alt="">
+    <video class="v on" id="v-idle" src="/video/lich_idle.mp4" muted loop playsinline preload="auto"></video>
+    <video class="v" id="v-talk" src="/video/lich_talk.mp4" muted loop playsinline preload="auto"></video>
     <canvas id="gl" aria-hidden="true"></canvas>
     <span class="pill" id="mood">ждёт</span>
     <div id="res" aria-live="polite"></div>
