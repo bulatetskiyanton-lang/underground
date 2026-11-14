@@ -97,10 +97,11 @@ let focusT = 0;
 function direct(kind, pid) {
   const st = $('stage'), map = { 'лич': 'f-lich', 'место': 'f-place', 'кубик': 'f-dice' };
   clearTimeout(focusT);
-  st.classList.remove('f-lich', 'f-place', 'f-dice'); document.body.classList.remove('f-map'); $('spot').hidden = true;
+  st.classList.remove('f-lich', 'f-place', 'f-dice'); document.body.classList.remove('f-map'); $('spot').hidden = true; $('scenecard').classList.remove('big');
   if (!kind) return;
   let hold = 6000;
-  if (map[kind]) { if (kind === 'место' && !bgOn) return; st.classList.add(map[kind]); if (kind === 'место') hold = 4200; if (kind === 'кубик') hold = 9000; }
+  if (kind === 'место') { if ($('scenecard').hidden) return; $('scenecard').classList.add('big'); hold = 6500; }
+  else if (map[kind]) { st.classList.add(map[kind]); if (kind === 'кубик') hold = 9000; }
   else if (kind === 'карта') document.body.classList.add('f-map');
   else if (kind === 'монстр') {
     const p = (state.players || []).find((x) => x.pid === pid);
@@ -123,13 +124,13 @@ function setBg(url, hot) {
 
 window.NKDebug = { setBg, direct };
 function showScene(m, fresh) {
-  if (m.i > 0 || bgOn) setBg(`/api/scene?room=${room}&i=${m.i}&v=${m.v}`, m.hot || ((state.places || [])[m.i] || {}).hot);
+  $('scenecard').dataset.hot = m.hot || ((state.places || [])[m.i] || {}).hot || 'центр';
   sceneShown = m.i + ':' + m.v;
   const c = $('scenecard');
   c.querySelector('img').src = `/api/scene?room=${room}&i=${m.i}&v=${m.v}`;
   c.querySelector('b').textContent = m.name;
   c.hidden = false; c.classList.remove('in');
-  if (fresh) { void c.offsetWidth; c.classList.add('in', 'big'); setTimeout(() => c.classList.remove('big'), 5200); }
+  if (fresh) { void c.offsetWidth; c.classList.add('in'); }
 }
 $('scenecard').addEventListener('click', () => $('scenecard').classList.toggle('big'));
 function drawMap() {

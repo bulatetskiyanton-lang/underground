@@ -151,7 +151,12 @@ aside>*{position:relative}
 #stage{overflow:hidden}
 #stage.video.f-place video.v.on,#stage.f-place canvas.fx{opacity:.22}
 #stage.f-place #bgscene img.on{animation-duration:9s}
-#scenecard{display:none!important}
+#scenecard{left:8.5%;top:10%;width:33%;transition:width .7s cubic-bezier(.2,1,.3,1),left .7s,top .7s,transform .7s}
+#scenecard .im,#scenecard.big .im{aspect-ratio:4/3}
+#scenecard.big{left:12%;top:8%;width:76%;transform:rotate(0deg);z-index:7}
+#scenecard img{animation:kb 22s ease-in-out infinite alternate;left:-4%;top:-4%;width:108%;height:108%}
+#scenecard[data-hot="слева"] img{transform-origin:22% 45%} #scenecard[data-hot="центр"] img{transform-origin:50% 45%} #scenecard[data-hot="справа"] img{transform-origin:78% 45%}
+#scenecard.big img{animation-duration:9s}
 #spot{position:absolute;left:5%;top:9%;width:24%;z-index:5;display:grid;justify-items:center;gap:8px;animation:spotIn .7s cubic-bezier(.2,1.3,.3,1) both}
 #spot[hidden]{display:none}
 #spot i{width:100%;aspect-ratio:1;border-radius:50%;background:#1b1613 center/cover;border:5px solid var(--ink-dark);box-shadow:0 0 0 4px var(--paper-2),0 0 0 7px var(--ink-dark),0 0 40px 8px rgba(63,214,192,.55)}
