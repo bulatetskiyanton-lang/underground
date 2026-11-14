@@ -249,6 +249,47 @@ aside .mapbox{width:min(100%,26vh);margin-inline:auto}
 .mc .sl img{width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply}
 .mc .sl.on::after{content:"";position:absolute;inset:-8%;border:2px solid #b5651d;border-radius:4px}
 .mc .sl1{left:20.7%;top:68.7%} .mc .sl2{left:43.5%;top:68.7%} .mc .sl3{left:66%;top:68.7%} .mc .sl4{left:20.7%;top:83.6%} .mc .sl5{left:43.5%;top:83.6%} .mc .sl6{left:66%;top:83.6%}
+
+/* ===== цельный экран по мастеру A: сцена на весь экран, интерфейс лежит поверх ===== */
+#app{display:block;position:fixed;inset:0;overflow:hidden;background:#050302}
+#stage{--W:max(78vw,134vh);position:absolute;width:var(--W);max-width:none;height:auto;aspect-ratio:1440/1075;left:calc(50vw - var(--W) / 2);top:min(0px,calc(84vh - var(--W) * .5131));border:0;box-shadow:none;align-self:auto;-webkit-mask-image:linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent);mask-image:linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent)}
+#frame{display:none}
+#hud{position:absolute;inset:0;pointer-events:none;z-index:6}
+#hud>*{pointer-events:auto}
+#hud::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 62% 70% at 50% 42%,transparent 55%,rgba(5,3,2,.62) 100%),linear-gradient(transparent 72%,rgba(5,3,2,.55))}
+#hudL{position:absolute;left:1.1vw;top:1.4vh;bottom:2vh;width:15vw;display:flex;flex-direction:column;gap:1vh;pointer-events:none}
+#hudL>*{pointer-events:auto}
+#hudL #codetag{width:100%;flex-shrink:0}
+#hudL #joinhint #url{display:none}
+#hudL #joinhint{color:#e8d9b8;text-shadow:0 1px 3px #000,0 0 8px #000;font-size:max(11px,.62vw);text-align:left;margin:-.6vh 0 0 2%}
+#hudL #players{display:flex;flex-direction:column;gap:1.4vh;align-items:flex-start;flex:1;min-height:0}
+#hudL .mc{width:min(100%,calc((100vh - 27vh - 15vw * .54) / 2 / 1.377))}
+#hudL .card{width:100%}
+#hudR{position:absolute;right:1.1vw;top:1.4vh;width:15vw;display:flex;flex-direction:column;align-items:center;gap:.6vh;pointer-events:none}
+#hudR>*{pointer-events:auto;flex-shrink:0}
+#hudR #goalsign{width:100%;margin:0}
+#hudR .mapbox{width:100%;margin:0}
+#hudR #questnote{width:94%;margin:0}
+#hudT{position:absolute;left:50%;top:1.2vh;transform:translateX(-50%);display:grid;justify-items:center;gap:.4vh;width:17vw}
+#hudR .mapbox #scene{position:absolute;left:24%;right:24%;top:6.5%;height:9%;display:grid;place-items:center;text-align:center;font-family:var(--display);font-size:max(11px,.82vw);line-height:1;color:var(--ink-dark);z-index:2;overflow:hidden}
+#hudT #mood{position:static}
+#hudD{position:absolute;right:1.1vw;bottom:2.2vh;width:15vw;display:grid;gap:.8vh}
+#hudD .rack{grid-template-columns:repeat(6,1fr);gap:.3vw}
+#hudD .rack button{padding:.5vh 0;font-size:max(11px,.75vw)}
+#hudD #res{position:static;text-align:center;font-family:var(--display);font-size:1.6vw;color:#f6e3c6;text-shadow:0 2px 6px #000}
+#hud #plate{position:absolute;left:17.5vw;right:17.5vw;bottom:2.4vh;top:auto}
+#hud #ask{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(2.4vh + 118px);top:auto;right:auto}
+#hud #start{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(2.4vh + 130px)}
+#hud #giftfx{position:absolute;inset:0;pointer-events:none}
+#hud #err{position:absolute;left:17.5vw;bottom:.3vh;font-size:12px;max-width:40vw;color:#e07a5f;text-shadow:0 1px 2px #000}
+#stage.f-place>video.v,#stage.f-place>canvas.fx{transform-origin:74% 62%}
+/* интро: весь интерфейс прячется, видна только реплика, когда лич говорит */
+#app:has(#stage.intro) #hud>:not(#plate){opacity:0;pointer-events:none}
+#app:has(#stage.intro) #hud #plate{opacity:0;transform:translateY(12px);transition:opacity .6s,transform .6s}
+#app:has(#stage.intro.talking) #hud #plate{opacity:1;transform:none}
+#hud>*{transition:opacity .6s}
+#hud #res:empty,#hud #ask:empty,#hud #mood{display:none}
+#hud #res{background:none;border:0;padding:0}
 </style>
 </head>
 <body>
@@ -267,15 +308,6 @@ aside .mapbox{width:min(100%,26vh);margin-inline:auto}
 </div>
 
 <div id="app" hidden>
-  <aside>
-    <div class="label">Код комнаты</div>
-    <div id="codetag"><b id="code">·····</b><div id="qr"></div></div>
-    <div class="url" id="joinhint">Наведи камеру телефона на бирку — откроется пульт. <span id="url"></span></div>
-    <div class="label">Монстры</div>
-    <div id="players" class="grow"></div>
-    <button class="btn main" id="start" type="button" hidden>Начать игру</button>
-  </aside>
-
   <main id="stage">
     <img class="f on" data-f="closed" src="/img/lich_closed.webp" alt="Лич">
     <img class="f" data-f="half" src="/img/lich_half.webp" alt="">
@@ -292,27 +324,36 @@ aside .mapbox{width:min(100%,26vh);margin-inline:auto}
     <canvas id="introc" aria-hidden="true"></canvas>
     <div id="skiphint">нажми — пропустить</div>
     <canvas id="gl" aria-hidden="true"></canvas>
-    <span class="pill" id="mood">ждёт</span>
-    <div id="res" aria-live="polite"></div>
-    <div id="ask"></div>
     <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="boil" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence id="boil-n" type="fractalNoise" baseFrequency="0.035" numOctaves="1" seed="1" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
     <div id="spot" hidden><i></i><b></b></div>
-    <div id="giftfx"></div>
-    <div id="plate" class="plate shadow"><span class="tab" id="tab">ЛИЧ</span><div class="in" aria-live="polite"><span id="said"></span><span id="rest">Ждёт монстров. Зайдите с телефона по коду слева.</span></div></div>
   </main>
 
-  <aside>
-    <div class="plq name" id="scene">Логово лича</div>
-    <div class="mapbox"><svg id="map" viewBox="0 0 200 210" aria-label="Карта подземелья"></svg></div>
-    <div id="goalsign" hidden><span id="goal"></span></div>
-    <div id="questnote" hidden><small>Задания</small><div id="quests"></div></div>
-    <div class="label">Кубики</div>
-    <div class="rack" id="rack"></div>
-    <div class="power"><i id="pw"></i></div>
-    <div class="label">Что было</div>
-    <div id="log" class="grow"></div>
+  <div id="hud">
+    <div id="hudL">
+      <div id="codetag"><b id="code">·····</b><div id="qr"></div></div>
+      <div class="url" id="joinhint">Наведи камеру телефона на бирку — откроется пульт. <span id="url"></span></div>
+      <div id="players"></div>
+    </div>
+    <div id="hudT">
+      <span class="pill" id="mood">ждёт</span>
+    </div>
+    <div id="hudR">
+      <div id="goalsign" hidden><span id="goal"></span></div>
+      <div class="mapbox"><div id="scene">Логово лича</div><svg id="map" viewBox="0 0 200 210" aria-label="Карта подземелья"></svg></div>
+      <div id="questnote" hidden><small>Задания</small><div id="quests"></div></div>
+    </div>
+    <div id="hudD">
+      <div class="rack" id="rack"></div>
+      <div class="power"><i id="pw"></i></div>
+      <div id="res" aria-live="polite"></div>
+    </div>
+    <button class="btn main" id="start" type="button" hidden>Начать игру</button>
+    <div id="ask"></div>
+    <div id="giftfx"></div>
+    <div id="plate" class="plate shadow"><span class="tab" id="tab">ЛИЧ</span><div class="in" aria-live="polite"><span id="said"></span><span id="rest">Ждёт монстров. Зайдите с телефона по коду слева.</span></div></div>
+    <div id="log" hidden></div>
     <div id="err"></div>
-  </aside>
+  </div>
 </div>
 
 <script src="/vendor/three.min.js"></script>
