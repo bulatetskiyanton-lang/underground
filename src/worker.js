@@ -203,7 +203,7 @@ const MONSTER_TOOL = {
 // порядок рас — как в public/quiz.js
 const RACE_LOOK = [
   'a burly orc with tusks, tiny round spectacles and a knitted scarf',
-  'a small sly goblin hugging a bundle of stolen spoons',
+  'a small cheeky goblin with big ears juggling three silver spoons',
   'a polite skeleton in a tattered waistcoat holding an abacus',
   'a swamp hag kikimora with moss hair holding a jar of toadstool jam',
   'a friendly translucent slime blob with a half-digested book inside',
