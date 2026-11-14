@@ -132,7 +132,7 @@ function direct(kind, pid) {
   st.classList.remove('f-lich', 'f-place', 'f-dice'); document.body.classList.remove('f-map'); $('spot').hidden = true; $('scenecard').classList.remove('big');
   if (!kind) return;
   let hold = 6000;
-  if (kind === 'место') { if ($('scenecard').hidden) return; $('scenecard').classList.add('big'); hold = 6500; }
+  if (kind === 'место') { if ($('scenecard').hidden) return; $('scenecard').classList.add('big'); st.classList.add('f-place'); hold = 6500; }
   else if (map[kind]) { st.classList.add(map[kind]); if (kind === 'кубик') hold = 9000; }
   else if (kind === 'карта') document.body.classList.add('f-map');
   else if (kind === 'монстр') {

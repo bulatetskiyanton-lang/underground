@@ -145,11 +145,16 @@ aside>*{position:relative}
 #bgscene img.on{opacity:1;animation:kb 26s ease-in-out infinite alternate}
 #bgscene[data-hot="слева"] img{transform-origin:22% 40%} #bgscene[data-hot="центр"] img{transform-origin:50% 40%} #bgscene[data-hot="справа"] img{transform-origin:78% 40%}
 @keyframes kb{from{transform:scale(1) translate(0,0)}to{transform:scale(1.16) translate(-1.5%,1%)}}
-#stage>video,#stage>canvas,#stage>#bgscene{transform:scale(var(--z,1));transform-origin:var(--ox,50%) var(--oy,50%);transition:transform 1.3s cubic-bezier(.3,.1,.2,1),opacity .8s ease}
+#stage>video,#stage>canvas,#stage>#bgscene{transform:scale(var(--z,1));transform-origin:var(--ox,50%) var(--oy,50%);transition:transform 1.3s cubic-bezier(.3,.1,.2,1)}
+/* ролики лича режутся встык: никакого растворения, иначе на стыке лич становится прозрачным */
+#stage video.v,#stage canvas.fx{z-index:0;transition:transform 1.3s cubic-bezier(.3,.1,.2,1),z-index 0s linear 1.3s}
 #stage.f-lich{--z:1.2;--ox:50%;--oy:30%}
 #stage.f-dice{--z:1.38;--ox:74%;--oy:88%}
 #stage{overflow:hidden}
-#stage.video.f-place video.v.on,#stage.f-place canvas.fx{opacity:.22}
+/* «место»: картинка истории крупно сзади, лич-рассказчик уменьшается и отъезжает вправо, как стример, и остаётся спереди */
+#stage.f-place>video.v,#stage.f-place>canvas.fx{transform:scale(.44);transform-origin:95% 68%;z-index:8;pointer-events:none;transition:transform 1.3s cubic-bezier(.3,.1,.2,1),z-index 0s}
+#stage.f-place>video.bg,#stage.f-place>#bgscene{transform:none}
+#stage.f-place>canvas.fx-shade{opacity:0}
 #stage.f-place #bgscene img.on{animation-duration:9s}
 #scenecard{left:8.5%;top:10%;width:33%;transition:width .7s cubic-bezier(.2,1,.3,1),left .7s,top .7s,transform .7s}
 #scenecard .im,#scenecard.big .im{aspect-ratio:4/3}
