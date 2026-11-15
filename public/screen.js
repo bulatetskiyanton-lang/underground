@@ -654,3 +654,11 @@ function pollPad(now) {
   v.addEventListener('input', () => NKSound.set({ voice: v.value / 100 }));
   a.addEventListener('input', () => NKSound.set({ amb: a.value / 100 }));
 })();
+
+// ---------- новая игра: всё с нуля, код комнаты тот же, телефоны сами вернутся к анкете ----------
+$('newgame').addEventListener('click', () => {
+  if (!confirm('Начать новую игру? Монстры, карта, задания и летопись сотрутся. Телефоны останутся подключены и вернутся к анкете.')) return;
+  send({ t: 'reset' });
+  try { localStorage.removeItem('nk_intro_seen'); } catch (e) { /* ок */ }
+  setTimeout(() => location.reload(), 600);
+});

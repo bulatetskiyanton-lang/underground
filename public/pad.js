@@ -52,6 +52,7 @@
     else if (m.t === 'votes' && m.mine && m.mine[pid] != null) { myVote[m.id] = m.mine[pid]; markVote(); }
     else if (m.t === 'bones' && m.pid === pid) { toastBones(m); try { navigator.vibrate && navigator.vibrate(m.n > 0 ? [20, 40, 20, 40, 60] : 40); } catch (x) { /* ок */ } }
     else if (m.t === 'vol_state') { if (document.activeElement !== $('pv-voice')) $('pv-voice').value = Math.round(m.voice * 100); if (document.activeElement !== $('pv-amb')) $('pv-amb').value = Math.round(m.amb * 100); }
+    else if (m.t === 'reset') { wantRemake = false; selItem = -1; try { setTab('sheet'); } catch (x) { /* ок */ } }
     else if (m.t === 'make_failed') { err(m.text); if (oldFlow) wantRemake = true; else { qFailed = true; if (qStep > 5) drawQuiz(); } render(); }
     else if (m.t === 'quiz_c') { qSaid = m.text; qSaidStep = m.step; drawQuizLich(); }
     else if (m.t === 'seal' && m.pid === pid) { sealPop(); }

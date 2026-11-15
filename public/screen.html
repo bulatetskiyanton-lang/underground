@@ -339,6 +339,8 @@ input[type=range].ink,#vols input,#padvols input{-webkit-appearance:none;appeara
 #vols input::-webkit-slider-thumb,#padvols input::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;margin-top:-6px;border-radius:50%;background:radial-gradient(circle at 38% 32%,#b14a2e,#7d2a18 55%,#43130a);border:1.6px solid #14100c}
 #vols input::-moz-range-track,#padvols input::-moz-range-track{height:4px;background:#14100c}
 #vols input::-moz-range-thumb,#padvols input::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#7d2a18;border:1.6px solid #14100c}
+#newgame{justify-self:end;margin-top:4px;font-family:var(--label);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:11px;background:none;border:1.4px solid #14100c;color:#7a2a12;padding:3px 10px;cursor:pointer}
+#newgame:hover{background:#7a2a12;color:#f4e9cf}
 </style>
 </head>
 <body>
@@ -392,7 +394,7 @@ input[type=range].ink,#vols input,#padvols input{-webkit-appearance:none;appeara
       <div id="questnote" data-plate="note" hidden><small>Задания</small><div id="quests"></div></div>
     </div>
     <div id="hudD">
-      <div id="vols" data-plate="paper"><label><span>Голос лича</span><input type="range" id="v-voice" min="0" max="100" step="1"></label><label><span>Атмосфера</span><input type="range" id="v-amb" min="0" max="100" step="1"></label></div>
+      <div id="vols" data-plate="paper"><label><span>Голос лича</span><input type="range" id="v-voice" min="0" max="100" step="1"></label><label><span>Атмосфера</span><input type="range" id="v-amb" min="0" max="100" step="1"></label><button type="button" id="newgame">Новая игра</button></div>
       <div class="rack" id="rack"></div>
       <div class="power"><i id="pw"></i></div>
       <div id="res" aria-live="polite"></div>
@@ -414,6 +416,6 @@ input[type=range].ink,#vols input,#padvols input{-webkit-appearance:none;appeara
 <script src="/dice.js?v=3"></script>
 <script src="/quiz.js"></script>
 <script src="/nkmap.js?v=1794694672"></script>
-<script type="module" src="/screen.js?v=1794698000"></script>
+<script type="module" src="/screen.js?v=1794699000"></script>
 </body>
 </html>
