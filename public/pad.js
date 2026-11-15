@@ -407,6 +407,7 @@
       .catch(function (e) { $('heard').textContent = ''; err('Распознавание не ответило: ' + e.message); });
   }
   function hold(btn, done) {
+    btn.addEventListener('touchstart', function (e) { e.preventDefault(); }, { passive: false });   // айфон: без лупы и выделения
     btn.addEventListener('pointerdown', function (e) { e.preventDefault(); try { btn.setPointerCapture(e.pointerId); } catch (x) { /* ок */ } startRec(btn, done); });
     btn.addEventListener('pointerup', stopRec);
     btn.addEventListener('pointercancel', stopRec);
