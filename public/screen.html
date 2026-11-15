@@ -204,14 +204,14 @@ body.f-map .mapbox{transform:scale(1.7) translate(-6%,4%);z-index:9}
 aside>*{flex-shrink:0} aside>.grow{flex-shrink:1}
 aside .mapbox{width:min(100%,26vh);margin-inline:auto}
 #app aside{gap:10px}
-#codetag{position:relative;width:100%;container-type:inline-size;aspect-ratio:1200/647;background:url(/img/ui/v/codetag.svg) center/100% 100% no-repeat;filter:drop-shadow(3px 5px 0 rgba(0,0,0,.55))}
+#codetag{position:relative;width:100%;container-type:inline-size;aspect-ratio:1200/647;background:none center/100% 100% no-repeat;filter:drop-shadow(3px 5px 0 rgba(0,0,0,.55))}
 #codetag #code{position:absolute;left:34.5%;top:23%;width:40.5%;height:23%;display:grid;place-items:center;font-family:var(--display);font-weight:400;font-size:8.4cqw;letter-spacing:.06em;color:#7a2a12;white-space:nowrap}
 #codetag #qr{position:absolute;left:78.3%;top:20.5%;width:15%;height:auto;aspect-ratio:1;border:0;box-shadow:none;padding:0;background:transparent}
 #joinhint{font-size:12px;line-height:1.25;text-align:center;margin-top:-6px}
-#goalsign{position:relative;width:min(100%,22vh);margin-inline:auto;aspect-ratio:1200/896;background:url(/img/ui/v/goal.svg) center/100% 100% no-repeat;filter:drop-shadow(3px 5px 0 rgba(0,0,0,.5))}
+#goalsign{position:relative;width:min(100%,22vh);margin-inline:auto;aspect-ratio:1200/896;background:none center/100% 100% no-repeat;filter:drop-shadow(3px 5px 0 rgba(0,0,0,.5))}
 #goalsign[hidden]{display:none}
 #goalsign #goal{position:absolute;left:9%;right:9%;top:52%;bottom:9%;display:grid;place-items:center;text-align:center;font-family:var(--display);font-size:clamp(14px,1.25vw,22px);line-height:1.1;color:var(--ink-dark)}
-#questnote{position:relative;width:min(100%,21vh);margin-inline:auto;container-type:inline-size;aspect-ratio:647/594;background:url(/img/ui/v/quests.svg) top center/100% auto no-repeat;-webkit-mask-image:linear-gradient(#000 80%,transparent);mask-image:linear-gradient(#000 80%,transparent);margin-top:-4px}
+#questnote{position:relative;width:min(100%,21vh);margin-inline:auto;container-type:inline-size;aspect-ratio:647/594;background:none top center/100% auto no-repeat;-webkit-mask-image:linear-gradient(#000 80%,transparent);mask-image:linear-gradient(#000 80%,transparent);margin-top:-4px}
 #questnote[hidden]{display:none}
 #questnote small{position:absolute;left:22%;right:21%;top:21.5%;height:13%;display:grid;place-items:center;font-family:var(--label);font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:clamp(10px,.8vw,14px);color:var(--ink-dark)}
 #quests .q{position:absolute;left:12.5%;right:12%;height:13%;display:grid;grid-template-columns:9% 1fr;gap:3%;align-items:end;font-family:var(--hand,var(--display));font-size:max(11px,6.4cqw);line-height:1.05;color:var(--ink-dark)}
@@ -219,7 +219,7 @@ aside .mapbox{width:min(100%,26vh);margin-inline:auto}
 #quests .q i{aspect-ratio:1;display:block}
 #quests .q.done span{text-decoration:line-through;color:#6a5c47}
 #quests .q.done i{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M3 11l5 5L18 3' fill='none' stroke='%237a2a12' stroke-width='3.4' stroke-linecap='round'/%3E%3C/svg%3E") center/90% no-repeat}
-#plate{background:none;border-style:solid;border-width:22px 26px 22px 108px;border-image:url(/img/ui/v/plate.svg) 24% 5% 24% 24% fill stretch;outline:0;box-shadow:none;padding:0;filter:drop-shadow(4px 6px 0 rgba(0,0,0,.55))}
+#plate{background:none;border-style:solid;border-width:22px 26px 22px 108px;border-image:none 24% 5% 24% 24% fill stretch;outline:0;box-shadow:none;padding:0;filter:drop-shadow(4px 6px 0 rgba(0,0,0,.55))}
 #plate>.in{border:0;padding:4px 8px;min-height:56px}
 #plate .tab{left:-96px;top:50%;transform:translateY(-62%);background:none;color:#14100c;font-size:15px;letter-spacing:.12em;padding:0;width:80px;text-align:center}
 /* карта монстра: лицо и оборот, переворачивается, когда игрок смотрит свой лист */
@@ -307,6 +307,29 @@ aside .mapbox{width:min(100%,26vh);margin-inline:auto}
 @keyframes penDraw{to{stroke-dashoffset:0}}
 @keyframes penFill{to{fill-opacity:1}}
 @keyframes penText{to{opacity:1}}
+
+/* ===== всё нарисовано пером (ink.js): никаких картинок-подложек ===== */
+#codetag{background:none!important;filter:none!important;aspect-ratio:2.25;container-type:size}
+#codetag #code{left:33%!important;top:27%!important;right:calc(26px + 56cqh)!important;width:auto!important;height:40%!important;font-size:min(30cqh,8cqw)!important}
+#codetag #qr{left:auto!important;right:16px!important;top:calc((100cqh - 9px - 56cqh) / 2)!important;width:56cqh!important;height:56cqh!important}
+#goalsign{background:none!important;filter:none!important;aspect-ratio:1.55}
+#goalsign #goal{top:41%!important;bottom:13%!important;left:9%!important;right:10%!important}
+#questnote{background:none!important;-webkit-mask-image:none!important;mask-image:none!important;aspect-ratio:auto!important;padding:62px 9% 22px;container-type:inline-size}
+#questnote small{position:absolute!important;left:23%!important;right:23%!important;top:23px!important;height:24px!important}
+#quests{display:grid;gap:6px}
+#quests .q{position:static!important;display:grid;grid-template-columns:15px 1fr;gap:8px;align-items:center;height:auto!important;border-bottom:1.2px solid #14100c;padding-bottom:3px}
+#quests .q i{width:15px;height:15px;border:1.6px solid #14100c;background:#f4e9cf}
+#hudR .mapbox{background:none!important;filter:none!important}
+#hudR .mapbox #scene{top:calc(5.5% + 1px)!important;height:22px!important;left:22%!important;right:22%!important}
+#map.rooms{left:12%!important;top:17%!important;width:76%!important;height:66%!important}
+#hud #plate{border:0!important;border-image:none!important;filter:none!important;background:none!important;padding:16px 28px 22px 92px!important}
+#hud #plate>.in{min-height:52px}
+#hud #plate .tab{left:4px!important;width:74px!important;top:18%!important;height:56%!important;transform:rotate(-3deg)!important;display:grid;place-items:center;font-size:14px}
+.mc img.fr{display:none}
+.mc .pt{border-radius:0!important;clip-path:inset(0 round 50% 50% 0 0 / 22% 22% 0 0)}
+#hudD .rack button{background:none!important;border:0!important;box-shadow:none!important;padding:0!important;aspect-ratio:1}
+#hudD .rack button .die{width:100%;height:100%;display:block}
+#hudD .rack button[aria-pressed="true"] .die{filter:drop-shadow(0 0 6px #f0962b)}
 </style>
 </head>
 <body>
@@ -347,7 +370,7 @@ aside .mapbox{width:min(100%,26vh);margin-inline:auto}
 
   <div id="hud">
     <div id="hudL">
-      <div id="codetag"><b id="code">·····</b><div id="qr"></div></div>
+      <div id="codetag" data-plate="tag"><b id="code">·····</b><div id="qr"></div></div>
       <div class="url" id="joinhint">Наведи камеру телефона на бирку — откроется пульт. <span id="url"></span></div>
       <div id="players"></div>
     </div>
@@ -355,9 +378,9 @@ aside .mapbox{width:min(100%,26vh);margin-inline:auto}
       <span class="pill" id="mood">ждёт</span>
     </div>
     <div id="hudR">
-      <div id="goalsign" hidden><span id="goal"></span></div>
-      <div class="mapbox"><div id="scene">Логово лича</div><svg id="map" viewBox="0 0 200 210" aria-label="Карта подземелья"></svg></div>
-      <div id="questnote" hidden><small>Задания</small><div id="quests"></div></div>
+      <div id="goalsign" data-plate="sign" hidden><span id="goal"></span></div>
+      <div class="mapbox" data-plate="map" id="mapbox"><div id="scene">Логово лича</div><svg id="map" viewBox="0 0 200 210" aria-label="Карта подземелья"></svg></div>
+      <div id="questnote" data-plate="note" hidden><small>Задания</small><div id="quests"></div></div>
     </div>
     <div id="hudD">
       <div class="rack" id="rack"></div>
@@ -367,7 +390,7 @@ aside .mapbox{width:min(100%,26vh);margin-inline:auto}
     <button class="btn main" id="start" type="button" hidden>Начать игру</button>
     <div id="ask"></div>
     <div id="giftfx"></div>
-    <div id="plate" class="plate shadow"><span class="tab" id="tab">ЛИЧ</span><div class="in" aria-live="polite"><span id="said"></span><span id="rest">Ждёт монстров. Зайдите с телефона по коду слева.</span></div></div>
+    <div id="plate" data-plate="plate"><span class="tab" id="tab">ЛИЧ</span><div class="in" aria-live="polite"><span id="said"></span><span id="rest">Ждёт монстров. Зайдите с телефона по коду слева.</span></div></div>
     <div id="log" hidden></div>
     <div id="err"></div>
   </div>
@@ -375,9 +398,11 @@ aside .mapbox{width:min(100%,26vh);margin-inline:auto}
 
 <script src="/vendor/three.min.js"></script>
 <script src="/vendor/cannon.min.js"></script>
-<script src="/dice.js?v=2"></script>
+<script src="/ui.js?v=2"></script>
+<script src="/ink.js?v=2"></script>
+<script src="/dice.js?v=3"></script>
 <script src="/quiz.js"></script>
 <script src="/nkmap.js?v=1794694672"></script>
-<script type="module" src="/screen.js?v=1794696000"></script>
+<script type="module" src="/screen.js?v=1794697000"></script>
 </body>
 </html>

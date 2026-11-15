@@ -73,9 +73,9 @@ function initDice(glc){
   // борта — низкие коробки, а не бесконечные стены: кубик прилетает сверху из-за камеры и падает внутрь
   function wall(x,z,hx,hz){ var b=new CANNON.Body({mass:0,material:mFloor}); b.addShape(new CANNON.Box(new CANNON.Vec3(hx,0.45,hz))); b.position.set(x,0.45,z); world.addBody(b); }
   wall(TX-TH-0.15,TZ,0.15,TH+0.3); wall(TX+TH+0.15,TZ,0.15,TH+0.3); wall(TX,TZ-TH-0.15,TH+0.3,0.15); wall(TX,TZ+TH+0.15,TH+0.3,0.15);
-  new THREE.TextureLoader().load('/img/ui/dicetray.webp',function(t){
+  new THREE.TextureLoader().load(window.NKInk?NKInk.trayTexture(1024):'/img/ui/dicetray.webp',function(t){
     t.anisotropy=8;
-    var tray=new THREE.Mesh(new THREE.PlaneGeometry(TH*2.62,TH*2.62),new THREE.MeshStandardMaterial({map:t,transparent:true,roughness:0.9}));
+    var tray=new THREE.Mesh(new THREE.PlaneGeometry(TH*2.44,TH*2.44),new THREE.MeshStandardMaterial({map:t,transparent:true,roughness:0.9}));
     tray.rotation.x=-Math.PI/2; tray.position.set(TX,0.01,TZ); tray.receiveShadow=true; scene.add(tray);
   });
 

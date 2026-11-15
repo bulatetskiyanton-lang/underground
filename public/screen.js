@@ -3,6 +3,7 @@ import qrcode from './vendor/qrcode.js';
 import { createFx } from './fx.js';
 
 const $ = (id) => document.getElementById(id);
+if (window.NKUI) NKUI.boot();   // общие узоры гравюры (кубики, значки) — как на пульте
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 let ws = null, room = '', state = { players: [], started: false }, audioCtx = null, analyser = null;
@@ -100,7 +101,7 @@ function renderState() {
   const qs = (state.quests || []).slice(0, 3);
   if ($('questnote').hidden && qs.length) { $('questnote').hidden = false; brush($('questnote')); }
   $('questnote').hidden = !qs.length;
-  $('quests').innerHTML = qs.map((q, i) => `<div class="q ${q.done ? 'done' : ''}" style="top:${[44.5, 60.4, 76.3][i]}%"><i></i><span${inkAttr('q:' + q.text + (q.done ? ':1' : ''), 500 + i * 220)}>${esc(q.text)}</span></div>`).join('');
+  $('quests').innerHTML = qs.map((q, i) => `<div class="q ${q.done ? 'done' : ''}"><i></i><span${inkAttr('q:' + q.text + (q.done ? ':1' : ''), 500 + i * 220)}>${esc(q.text)}</span></div>`).join('');
   drawMap();
   const cp = (state.places || [])[state.cur];
   if (cp && cp.v && sceneShown !== state.cur + ':' + cp.v) showScene({ i: state.cur, name: cp.name, v: cp.v }, false);
@@ -158,8 +159,8 @@ function monsterCard(p, m, img) {
   const ic = (x) => (x ? `<img src="/img/items/${esc(x.kind)}.webp" alt="${esc(x.name)}" title="${esc(x.name)}">` : '');
   const sk = (m.skills || []).slice(0, 3);
   return `<div class="mc ${looking[p.pid] ? 'flip' : ''} ${listening.has(p.pid) ? 'live' : ''}"${inkAttr('mc:' + p.pid, 0)} data-pid="${esc(p.pid)}" title="${esc(m.name)} · ${esc(m.title || '')}${p.online ? '' : ' · не в сети'}"><div class="mc-in">
-    <div class="mc-f"><img class="fr" src="/img/ui/v/mcard.svg" alt=""><i class="pt" ${img}>${p.pv ? '' : esc(m.name[0] || '?')}</i><b class="nm">${esc(m.name)}</b><span class="hpv">${m.hp}</span><span class="bn"><img src="/img/items/bone.webp" alt="">${p.bones || 0}</span>${[0, 1, 2].map((k) => `<span class="it it${k + 1}">${ic(gear[k])}</span>`).join('')}</div>
-    <div class="mc-b"><img class="fr" src="/img/ui/v/mcard_back.svg" alt=""><i class="md" ${img}></i><span class="st st1">${m.hp}</span><span class="st st2">${p.bones || 0}</span><span class="st st3">${gear.length}</span>${sk.map((x, k) => `<span class="sk sk${k + 1}">${esc(x.name)} · ${esc(x.die)}</span>`).join('')}${[0, 1, 2, 3, 4, 5].map((k) => `<span class="sl sl${k + 1} ${(p.gear || []).includes(k) ? 'on' : ''}">${ic(it(k))}</span>`).join('')}</div>
+    <div class="mc-f" data-plate="card" data-seed="${esc(p.pid)}"><i class="pt" ${img}>${p.pv ? '' : esc(m.name[0] || '?')}</i><b class="nm">${esc(m.name)}</b><span class="hpv">${m.hp}</span><span class="bn"><img src="/img/items/bone.webp" alt="">${p.bones || 0}</span>${[0, 1, 2].map((k) => `<span class="it it${k + 1}">${ic(gear[k])}</span>`).join('')}</div>
+    <div class="mc-b" data-plate="card-back" data-seed="${esc(p.pid)}"><i class="md" ${img}></i><span class="st st1">${m.hp}</span><span class="st st2">${p.bones || 0}</span><span class="st st3">${gear.length}</span>${sk.map((x, k) => `<span class="sk sk${k + 1}">${esc(x.name)} · ${esc(x.die)}</span>`).join('')}${[0, 1, 2, 3, 4, 5].map((k) => `<span class="sl sl${k + 1} ${(p.gear || []).includes(k) ? 'on' : ''}">${ic(it(k))}</span>`).join('')}</div>
   </div></div>`;
 }
 function look(pid, on) {
@@ -603,7 +604,7 @@ async function pumpSay() {
 function initDice() {
   const rack = $('rack');
   NKDice.DICE.forEach((d, i) => {
-    const b = document.createElement('button'); b.type = 'button'; b.textContent = d.id;
+    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', d.id); b.innerHTML = window.NKUI ? NKUI.die(d.id) : d.id;
     b.addEventListener('click', () => pick(i));
     rack.appendChild(b);
   });

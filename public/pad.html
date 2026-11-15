@@ -206,6 +206,10 @@ body.play{padding-bottom:calc(118px + env(safe-area-inset-bottom));padding-top:c
 #cupask[hidden]{display:none}
 #cuphint{text-align:center;font-size:15px;line-height:1.25;color:var(--ink-soft);margin-top:-6px}
 #t-dice #throw{width:min(30vw,120px)}
+
+/* все листы — пером (ink.js), без CSS-рамок */
+.paper{background:none!important;border:0!important;box-shadow:none!important;padding:14px 18px}
+.paper.orn::before,.paper.orn::after{display:none!important}
 </style>
 </head>
 <body>
@@ -308,9 +312,10 @@ body.play{padding-bottom:calc(118px + env(safe-area-inset-bottom));padding-top:c
   <button type="button" data-tab="dice" data-ic="dice">Кубики</button>
   <button type="button" data-tab="talk" data-ic="talk">Разговор</button>
 </div></nav>
-<script src="/ui.js?v=1794694672"></script>
+<script src="/ui.js?v=2"></script>
 <script src="/quiz.js"></script>
 <script src="/nkmap.js?v=1794694672"></script>
+<script src="/ink.js?v=2"></script>
 <script src="/cup.js?v=1"></script>
 <script src="/pad.js?v=1794696000"></script>
 </body>
