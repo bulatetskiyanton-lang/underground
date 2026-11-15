@@ -73,7 +73,7 @@
     if ($('v-legend').hidden && $('v-race').hidden) show('race');
   }
   var show0 = show;
-  show = function (v) { show0(v); var play = v === 'play'; $('tabs').hidden = !play; document.body.classList.toggle('play', play); if (!play) $('title').textContent = 'Нижний Край'; };
+  show = function (v) { show0(v); var play = v === 'play'; $('tabs').hidden = !play; document.body.classList.toggle('play', play); if (!play) $('title').textContent = 'Underground'; };
 
   function setTab(t) {
     if ((t === 'sheet') !== (tab === 'sheet') || t === 'sheet') send({ t: 'look', on: t === 'sheet' });

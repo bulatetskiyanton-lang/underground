@@ -111,7 +111,7 @@ function renderState() {
     const inQuiz = p.quiz >= 1 && !p.sealed;
     if (!m || inQuiz) return `<div class="card" data-pid="${esc(p.pid)}"><div class="ph">?</div><div><h3>${esc(p.name || 'Кто-то')}</h3><div class="t">${inQuiz ? (p.quiz <= 5 ? `анкета жильца · ${p.quiz} из 5` : 'лич ставит печать…') : p.making ? 'лич лепит монстра…' : 'выбирает монстра'}</div>${inQuiz ? `<div class="qdots">${[1, 2, 3, 4, 5].map((k) => `<i class="${k < p.quiz ? 'on' : ''}"></i>`).join('')}</div>` : ''}</div></div>`;
     return monsterCard(p, m, img);
-  }).join('') || '<div class="url">Пока никого. Наведи камеру телефона на код.</div>';
+  }).join('') || '';
   const ready = ps.some((p) => p.monster) && !ps.some((p) => p.quiz >= 1 && !p.sealed);
   $('start').hidden = state.started || !ready;
   document.querySelectorAll('.giftcard.sealcard[data-pid]').forEach((c) => { const p = ps.find((x) => x.pid === c.dataset.pid); if (p && p.pv) { const ph = c.querySelector('.ph'); ph.style.backgroundImage = `url('/api/portrait?room=${room}&pid=${encodeURIComponent(p.pid)}&v=${p.pv}')`; ph.textContent = ''; } });

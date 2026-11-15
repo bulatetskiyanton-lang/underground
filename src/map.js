@@ -71,6 +71,6 @@ export function mapForLich(map) {
   if (!map) return '';
   const cur = map.rooms[map.at];
   const line = (r) => `${r.name}${r.id === map.at ? ' (монстры здесь)' : ''}: ${r.find ? r.find.what + (r.find.taken ? ' — уже забрано' : '') : 'ничего спрятанного'}; ${r.state === 'seen' ? 'осмотрена' : r.state === 'open' ? 'вошли, не осматривали' : 'ещё не были'}`;
-  const doors = map.doors.filter((d) => d.a === map.at || d.b === map.at).map((d) => `${map.rooms[d.a === map.at ? d.b : d.a].name} — дверь ${d.state === 'locked' ? 'ЗАПЕРТА' : d.state === 'closed' ? 'закрыта' : 'открыта'}`);
+  const doors = map.doors.filter((d) => d.a === map.at || d.b === map.at).map((d) => `${map.rooms[d.a === map.at ? d.b : d.a].name} — дверь ${d.state === 'locked' ? 'ЗАПЕРТА (нужен ключ или взлом)' : d.state === 'closed' ? 'закрыта, но НЕ заперта — входят свободно' : 'открыта'}`);
   return `Карта этой локации (секрет, игроки видят только открытое):\n${map.rooms.map(line).join('\n')}\nИз комнаты «${cur.name}» можно пройти: ${doors.join('; ') || 'никуда'}.`;
 }

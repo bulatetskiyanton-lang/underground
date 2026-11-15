@@ -24,6 +24,21 @@ const CREW = 'home';
 const plural = (n, a, b, c) => { const k = Math.abs(n) % 100, d = k % 10; return k > 10 && k < 20 ? c : d === 1 ? a : d >= 2 && d <= 4 ? b : c; };
 const bonesWord = (n) => `${n} ${plural(n, 'кость', 'кости', 'костей')}`;
 
+// реплика лича: без обращения по имени в начале (кроме приветствия) и не длиннее ~200 знаков — первая фраза + последний вопрос
+function trimSay(t, names) {
+  if (names) for (const n of names) {
+    for (const k of [n, ...n.split(' ')]) {
+      const re = new RegExp('^' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[,!.]?\\s+', 'i');
+      if (k.length > 2 && re.test(t)) { t = t.replace(re, ''); t = t.charAt(0).toUpperCase() + t.slice(1); break; }
+    }
+  }
+  if (t.length > 210) {
+    const parts = t.match(/[^.!?…]+[.!?…]+["»]?\s*/g) || [t];
+    if (parts.length > 2) { const last = parts[parts.length - 1]; t = (parts[0] + (last.includes('?') ? last : parts[1])).trim(); }
+  }
+  return t;
+}
+
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const randomCode = (len = 5) => {
   const b = new Uint8Array(len);
@@ -60,6 +75,8 @@ const LICH_PROMPT = `Ты — старый лич на пенсии, масте�
 - Если по сюжету монстр что-то находит, получает или крадёт (осколок, ключ, зелье, кость, монету) — заполни give: кому и что. Вещь сразу появится у него в амуниции. Дари редко и со смыслом, не чаще раза в несколько ходов. У каждой вещи должно быть понятное применение: в desc напиши, что ею можно сделать, начиная с глагола («Открыть одну запертую дверь», «Отвлечь стражу на один ход»). Когда даришь, одной фразой скажи вслух, на что она годится. Если монстр спрашивает, что делать с вещью, — ответь прямо и подскажи, где она пригодится сейчас.
 - Веди список заданий quests: от одного до четырёх коротких заданий, которые сейчас стоят перед монстрами (главное и побочные, у соседей тоже бывают просьбы). Отдавай список целиком, когда он изменился: новое задание, выполнено (done: true), провалено — убери.
 - Говори на том языке, на котором говорят игроки (русский или украинский).
+
+Карта: двери бывают закрытые и запертые. Закрытая дверь открывается просто так — монстр входит, ничего не надо. Заперта только та, что помечена ЗАПЕРТА. Если монстр говорит, что идёт в соседнюю комнату, — заполни move её названием и опиши, что видно с порога. Варианты в paths называй именами соседних комнат.
 
 Кости — твоя награда:
 - За находчивое решение или смешную реплику игрока дай кости: заполни bones (кому, сколько от 1 до 3, за что) и скажи вслух, например: «Ха! За гриб в сапог — две кости». Не чаще раза в три-четыре хода: в запросе написано, можно ли сейчас.
@@ -161,6 +178,7 @@ const LICH_TOOL = {
         properties: { who: { type: 'string', description: 'Имя монстра' }, n: { type: 'integer', minimum: 1, maximum: 10 }, why: { type: 'string', description: 'На что, до 60 знаков' } },
         required: ['who', 'n', 'why'],
       },
+      move: { type: 'string', description: 'Если монстр сказал, что идёт в соседнюю комнату карты, и дверь туда не заперта — название этой комнаты, точно как на карте. Фишки сами перейдут.' },
       gesture: { type: 'string', enum: ['think', 'listen', 'laugh', 'map', 'point', 'sixseven'], description: 'Жест лича, если нужен' },
     },
     required: ['say', 'mood'],
@@ -764,7 +782,7 @@ export class Room {
       умения: p.monster.skills.map((s) => `${s.name} (${s.die}): ${s.desc}`), амуниция: (p.gear || []).map((i) => p.monster.items?.[i]).filter(Boolean).map((it) => `${it.name}: ${it.desc}`), здоровье: p.monster.hp, кости: p.bones || 0, слабость: p.monster.weakness, легенда: p.legend,
     }));
     const what = ev.kind === 'start' && this.intro === 'done' ? 'Игра началась. Ты уже представился в интро и заселил монстров по анкете — не повторяйся. Отведи их в нору, назови по именам и предложи первое дело в подземелье.'
-      : ev.kind === 'start' ? 'Игра началась. Встреть монстров в своём логове: коротко представься, подколи каждого по его легенде и предложи первое дело в подземелье.'
+      : ev.kind === 'start' ? 'Игра началась. Встреть монстров в своём логове одной фразой с подколкой по легенде и спроси, куда они пойдут первым. Всего два предложения.'
       : ev.kind === 'join' ? `К игре присоединился новый монстр: ${ev.who}. Коротко поприветствуй его и встрой в происходящее.`
       : ev.kind === 'roll' ? `${ev.who} бросил ${ev.die}, выпало ${ev.n}. Расскажи, что из этого вышло.`
       : idle ? `За столом полминуты тишина. Сделай одно живое короткое действие, сюжет не двигай: достань кость и разглядывай её, полистай летопись, поправь усы или подколи того, кто давно молчит${ev.who ? ` (${ev.who})` : ''}. Одна фраза до 120 знаков. Без броска, без костей, без новых мест. Выбери gesture: think, listen или laugh.`
@@ -790,7 +808,7 @@ export class Room {
       say = 'Кхм. Мозги отсырели. Повтори-ка ещё раз.';
       this.cast({ t: 'error', text: r.error || 'мозги молчат' });
     } else {
-      say = clean(r.out.say, 260); mood = r.out.mood || mood;
+      say = trimSay(clean(r.out.say, 320), ev.kind === 'start' || ev.kind === 'join' ? null : [...this.players.values()].filter((p) => p.monster).map((p) => p.monster.name)); mood = r.out.mood || mood;
       if (['think', 'listen', 'laugh', 'map', 'point', 'sixseven'].includes(r.out.gesture)) gesture = r.out.gesture;
       if (!idle && r.out.scene) this.scene = clean(r.out.scene, 40);
       if (!idle && r.out.roll && DICE.includes(r.out.roll.die)) {
@@ -809,6 +827,12 @@ export class Room {
       this.paths = (Array.isArray(r.out.paths) ? r.out.paths : []).map((x) => clean(x, 30)).filter(Boolean).slice(0, 3);
       if (r.out.place?.name) this.goto(r.out.place);
       if (r.out.reveal && this.map.rooms[this.map.at]) this.map.rooms[this.map.at].state = 'seen';
+      if (r.out.move && this.map) {   // монстр сказал «иду туда» голосом — фишки переходят сами
+        const want = clean(r.out.move, 40).toLowerCase().replace(/ё/g, 'е');
+        const rr = this.map.rooms.find((x) => x.name && x.name.toLowerCase().replace(/ё/g, 'е') === want) || this.map.rooms.find((x) => x.name && want.includes(x.name.toLowerCase().replace(/ё/g, 'е')));
+        const d = rr && rr.id !== this.map.at ? doorBetween(this.map, this.map.at, rr.id) : null;
+        if (d && d.state !== 'locked') { enter(this.map, rr.id); this.scene = rr.name; }
+      }
       if (r.out.unlock && this.map.want != null) { const to = this.map.want, rr = this.map.rooms[to]; if (rr && doorBetween(this.map, this.map.at, to)) { enter(this.map, to); this.scene = rr.name; } }
       for (const t of ready) t.told = true;     // развязку отдали — второй раз не подсказываем
     }
