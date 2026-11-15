@@ -446,6 +446,7 @@ export class Room {
       else if (m.t === 'intro') { const v = m.on ? 'play' : 'done'; if (this.intro !== v && !(v === 'play' && this.intro === 'done')) { this.intro = v; this.state(); } }
       else if (m.t === 'reset') { this.players.clear(); this.log = []; this.started = false; this.lastLich = null; this.scene = 'Логово лича'; this.places = [{ name: 'Логово лича', v: 0 }]; this.map = makeMap(); this.edges = []; this.cur = 0; this.paths = []; this.goal = ''; this.notes = []; this.quests = []; this.turnNo = 0; this.bonesAt = -99; this.lines = []; this.votes = {}; this.writer = { cheat: '', critique: '', twists: [], at: 0 }; this.intro = ''; this.state(); }
       else if (m.t === 'idle') this.idle();
+      else if (m.t === 'vol_state') { this.vol = { voice: Number(m.voice), amb: Number(m.amb) }; this.cast({ t: 'vol_state', ...this.vol }, 'pad'); }
       return;
     }
     const p = this.players.get(c.pid);
@@ -463,6 +464,7 @@ export class Room {
     else if (m.t === 'skip_intro') { if (this.intro === 'play') this.cast({ t: 'skip_intro' }, 'screen'); }
     else if (m.t === 'talking') this.cast({ t: 'talking', pid: p.pid, on: !!m.on }, 'screen');
     else if (m.t === 'look') this.cast({ t: 'look', pid: p.pid, on: !!m.on }, 'screen');
+    else if (m.t === 'vol') { const v = {}; if (m.voice != null) v.voice = Math.max(0, Math.min(1, Number(m.voice) || 0)); if (m.amb != null) v.amb = Math.max(0, Math.min(1, Number(m.amb) || 0)); this.vol = { ...(this.vol || {}), ...v }; this.cast({ t: 'vol', ...v }, 'screen'); }
     else if (m.t === 'gear') {
       const n = p.monster?.items?.length || 0;
       p.gear = [...new Set((Array.isArray(m.idx) ? m.idx : []).map(Number).filter((i) => Number.isInteger(i) && i >= 0 && i < n))].slice(0, 3);

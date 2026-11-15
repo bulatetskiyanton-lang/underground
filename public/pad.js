@@ -51,6 +51,7 @@
     else if (m.t === 'lich') { showLich(m.text, m.roll, m.id); }
     else if (m.t === 'votes' && m.mine && m.mine[pid] != null) { myVote[m.id] = m.mine[pid]; markVote(); }
     else if (m.t === 'bones' && m.pid === pid) { toastBones(m); try { navigator.vibrate && navigator.vibrate(m.n > 0 ? [20, 40, 20, 40, 60] : 40); } catch (x) { /* ок */ } }
+    else if (m.t === 'vol_state') { if (document.activeElement !== $('pv-voice')) $('pv-voice').value = Math.round(m.voice * 100); if (document.activeElement !== $('pv-amb')) $('pv-amb').value = Math.round(m.amb * 100); }
     else if (m.t === 'make_failed') { err(m.text); if (oldFlow) wantRemake = true; else { qFailed = true; if (qStep > 5) drawQuiz(); } render(); }
     else if (m.t === 'quiz_c') { qSaid = m.text; qSaidStep = m.step; drawQuizLich(); }
     else if (m.t === 'seal' && m.pid === pid) { sealPop(); }
@@ -334,6 +335,10 @@
   $('b-search').addEventListener('click', function () { $('heard').textContent = 'Ты: осматриваю комнату'; send({ t: 'search' }); });
   $('b-loot').addEventListener('click', function () { $('heard').textContent = 'Ты: забираю'; send({ t: 'loot' }); });
   $('paths').addEventListener('click', function (e) { var b = e.target.closest('button[data-p]'); if (!b) return; var t = (state.paths || [])[Number(b.dataset.p)]; if (!t) return; $('heard').textContent = 'Ты: идём — ' + t; send({ t: 'say', text: 'Идём сюда: ' + t + '.' }); $('paths').innerHTML = ''; });
+
+  // громкость на экране: двигаешь здесь — меняется на телевизоре
+  var volT = 0;
+  ['voice', 'amb'].forEach(function (k) { $('pv-' + k).addEventListener('input', function (e) { clearTimeout(volT); var m = { t: 'vol' }; m[k] = e.target.value / 100; volT = setTimeout(function () { send(m); }, 60); }); });
 
   // ---------- разговор ----------
   // «браво» / «мимо»: что нравится, лич повторяет, что нет — больше не делает

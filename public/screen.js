@@ -44,7 +44,7 @@ async function loadLines(list) { for (const t of list) { if (voiceDead) return; 
 const introVoice = loadLines(Q.INTRO);
 
 $('open').addEventListener('click', async () => {
-  try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); analyser = audioCtx.createAnalyser(); analyser.fftSize = 512; analyser.connect(audioCtx.destination); } catch { audioCtx = null; }
+  try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); analyser = audioCtx.createAnalyser(); analyser.fftSize = 512; if (window.NKSound) { NKSound.start(audioCtx); analyser.connect(NKSound.voiceNode); } else analyser.connect(audioCtx.destination); } catch { audioCtx = null; }
   room = (new URLSearchParams(location.search).get('room') || localStorage.getItem('nk_screen_room') || '').toUpperCase();
   if (room.length < 4) { try { room = (await (await fetch('/api/new')).json()).room; } catch { room = Math.random().toString(36).slice(2, 7).toUpperCase(); } }
   localStorage.setItem('nk_screen_room', room);
@@ -63,7 +63,7 @@ $('open').addEventListener('click', async () => {
 
 function connect() {
   ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws?room=' + room);
-  ws.onopen = () => { send({ t: 'hello', role: 'screen' }); err(''); };
+  ws.onopen = () => { send({ t: 'hello', role: 'screen' }); err(''); if (window.NKSound) { const x = NKSound.get(); send({ t: 'vol_state', voice: x.voice, amb: x.amb }); } };
   ws.onmessage = (ev) => { let m; try { m = JSON.parse(ev.data); } catch { return; } onMsg(m); };
   ws.onclose = () => { err('Связь с комнатой пропала, переподключаюсь…'); setTimeout(connect, 1500); };
 }
@@ -80,6 +80,7 @@ function onMsg(m) {
   else if (m.t === 'rolled') { hush(); addLog(m.name, 'бросил ' + m.die + ': ' + m.n); }
   else if (m.t === 'bones') { showBones(m); }
   else if (m.t === 'look') { look(m.pid, m.on); }
+  else if (m.t === 'vol' && window.NKSound) { NKSound.set(m); }
   else if (m.t === 'votes') { stampVote(m); }
   else if (m.t === 'do_roll') { direct('кубик'); doRoll(m.pid, m.die, m.power); quip('roll'); }
   else if (m.t === 'gift') { gesture('give'); showGift(m); }
@@ -373,7 +374,9 @@ async function speak(text, ready) {
   curAudio = a;
   try { if (audioCtx) { if (audioCtx.state === 'suspended') await audioCtx.resume(); audioCtx.createMediaElementSource(a).connect(analyser); } } catch { /* играем напрямую */ }
   a.onloadedmetadata = () => { if (isFinite(a.duration)) lineDur = a.duration; };
-  a.onended = a.onerror = () => { if (my === speakSeq) { hush(); speaking = false; curAudio = null; level = 0; $('said').textContent = text; $('rest').textContent = ''; $('mood').textContent = 'ждёт'; } };
+  a.onended = a.onerror = () => { if (window.NKSound) NKSound.duck(false); if (my === speakSeq) { hush(); speaking = false; curAudio = null; level = 0; $('said').textContent = text; $('rest').textContent = ''; $('mood').textContent = 'ждёт'; } };
+  if (!audioCtx || !window.NKSound) a.volume = Math.min(1, (window.NKSound ? NKSound.get().voice : 1));
+  if (window.NKSound) NKSound.duck(true);
   lineDur = Math.max(1.5, text.length / 15); lineT0 = performance.now(); speaking = true;
   try { await a.play(); } catch (e) { err('Звук не включился: нажми на страницу'); a.onended(); }
 }
@@ -640,3 +643,14 @@ function pollPad(now) {
   if (dir && now - padSelAt > 230) { padSelAt = now; pick(NKDice.selected() + dir); }
   if (!dir) padSelAt = 0;
 }
+
+// ---------- громкость: голос лича и атмосфера; с экрана и с телефона ----------
+(function () {
+  if (!window.NKSound) return;
+  const v = $('v-voice'), a = $('v-amb');
+  const show = (x) => { v.value = Math.round(x.voice * 100); a.value = Math.round(x.amb * 100); };
+  show(NKSound.get());
+  NKSound.onchange = (x) => { show(x); send({ t: 'vol_state', voice: x.voice, amb: x.amb }); };
+  v.addEventListener('input', () => NKSound.set({ voice: v.value / 100 }));
+  a.addEventListener('input', () => NKSound.set({ amb: a.value / 100 }));
+})();
